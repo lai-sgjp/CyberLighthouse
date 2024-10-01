@@ -71,7 +71,7 @@ func processTCP(conn net.Conn) {
 	defer conn.Close()
 	buf := make([]byte, 2048)
 	for {
-		n, err := conn.Read(buf)
+		n, err := conn.Read(buf)//这里的意思是将conn里面的读取到buf中
 		if err != nil {
 			log.Printf("Failed to recieve message from the client:%v", err)
 			break
@@ -90,7 +90,7 @@ func processTCP(conn net.Conn) {
 
 func processUDP(conn *net.UDPConn) { //是一个指针(UDP与TCP还是不一样的)
 	//TCP则是强调传输的安全，怎么说就是用Accept确认一次并建立专门的通道/socket
-	//UDP是只要传输包就可以了，所以只需要一个指向某个通道的指针
+	//UDP是只要传输包就可以了，所以只需要一个指向某个通道的指针、地址
 	defer conn.Close()
 	buf := make([]byte, 2048)
 	for {
