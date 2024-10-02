@@ -20,17 +20,16 @@ func CreateTCPSer(ports []string) {
 			continue
 		}
 		go func(listener *net.TCPListener) {
-			var conn net.Conn
-			var err error
 			for {
-				conn, err = listener.Accept()
+				conn, err := listener.Accept()
 				if err != nil {
 					log.Printf("Failed to accept the connection:%v\n", err)
 					continue
 				}
+				go ProcessTCP(conn) //这个一定要放在for内部，因为变量生命周期的原因
 			}
 			
-			go ProcessTCP(conn) 
+			
 		}(listener)
 		
 	}

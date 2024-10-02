@@ -4,7 +4,7 @@ import (
 	"log"
 	"net"
 )
-
+//自定义错误
 type quitError struct {
 	message string
 }
@@ -17,7 +17,6 @@ func CreateTCPConn(addr string) net.Conn {
 	conn ,err := net.Dial("tcp",addr)
 
 	if err != nil {
-		//fmt.Printf("Failed to dial:", err)
 		log.Fatal("Failed to dial:", err)
 	}
 		

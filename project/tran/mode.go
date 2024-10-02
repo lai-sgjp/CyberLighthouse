@@ -75,7 +75,6 @@ func textModeudp(conn *net.UDPConn,newBuf []byte) error {
 		conn.Close() 
 		return err
 	}
-
 	return nil
 }
 
