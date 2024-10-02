@@ -81,3 +81,7 @@
         >`dig -x <ip>`可以反向查询
     - 分级查询:每一级域名都有自己的NS记录,从顶级域名到后面一个一个的指路
         >`dig +trace <网址>`显示分级查询过程(不过貌似实操时被GFW封住了？显示超时)
+- 2050学习如何用`go`实现dns的解析
+    >参考:*https://www.cnblogs.com/chase-wind/p/6814053.html?utm_campaign=studygolang.com&utm_medium=studygolang.com&utm_source=studygolang.com*
+- 0130:成功实现DNS发送请求报文，但还差解析响应报文
+    >问题：向8.8.8.8:53发送B站和Bing的两次一样，且后面全为0.而用1.1.1.1:53则是前一个问题得到解决
