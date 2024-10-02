@@ -5,6 +5,7 @@ import (
 	"os"
 	"log"
 	"fmt"
+	"net"
 
 	"example2.com/createConn"
 )
@@ -42,14 +43,36 @@ func main() {
 		}
 
 		tran_c.Choose(*tranptr,*addrptr,*context)
+
+
 	case "int":
 		contextptr := flag.NewFlagSet("int",flag.ExitOnError)
 		context := contextptr.Int("c",0,"Which number do you want to send?")
-		if err := contextptr.Parse(os.Args[2:]);err != nil {//母命令可以有？
+		if err := contextptr.Parse(args[1:]);err != nil {//母命令可以有？
 			log.Fatal("Failed to read the number you want to send:",err)
 		}
 		contextEdit := fmt.Sprintf("%d",*context)
 		tran_c.Choose(*tranptr,*addrptr,contextEdit)
+
+
+	case "file":
+		fileflag := flag.NewFlagSet("file",flag.ExitOnError)
+		filenameptr := fileflag.String("n","","which file do you want to send")
+		if err := fileflag.Parse(args[1:]);err != nil {
+			log.Fatal("Failed to read the file's name:",err)
+		} 
+
+		filename := fmt.Sprintf("%s",*filenameptr)
+
+		var conn net.Conn
+		switch *tranptr {
+		case "tcp":
+			conn = tran_c.CreateTCPConn(*addrptr)
+		case "udp":
+			conn = tran_c.CreateUDPConn(*addrptr)//给已经存在的变量修改值应该直接使用`=`而非`:=`
+		}
+
+		tran_c.SendFile(conn,filename)
 	}
 	
 /*
