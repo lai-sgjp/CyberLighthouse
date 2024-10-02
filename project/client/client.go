@@ -17,6 +17,7 @@ func main() {
 		return
 	}
 
+	//e.g.go run . main -tc="tcp" -a="127.0.0.1.8080" string -c="Hello world!"
 	main := flag.NewFlagSet("main",flag.ExitOnError)
 	tranptr := main.String("tc","tcp","which protocol do you want to use")//tranconfig//这里是直接输入到命令行，无需加上tag(无索引为1)，直接用指针进行操作
 	addrptr := main.String("a","127.0.0.1:8080","which address do you want to send message")//无index:2，直接用指针进行操作

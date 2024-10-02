@@ -33,14 +33,13 @@ func main() {
 	}
 
 	fmt.Println("Whether turn on the UDP service or not(y/n)")
-
 	var choice rune //不是tune！！
 	fmt.Scanln("%v", &choice)
 	if choice == 'y' {
-		tran.CreateUDPSer(ports)
+		go tran.CreateUDPSer(ports)
 	}
 
-	tran.CreateTCPSer(ports)
+	go tran.CreateTCPSer(ports)
 
 	select {} //保持server端长时间不关闭
 }
