@@ -54,13 +54,11 @@ func ParseDN(domain string) []byte { //这里的byte是单数！表示一个整�
 }
 
 func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.Duration, error) { //最后一个表示一段时长，以秒作为单位
-	/*
-		//先进行测试，因为发现发送和接收的ID不一样，先固定看一下是不是随机数生成两次的问题
-		source := rand.NewSource(time.Now().UnixNano())
-		rng := rand.New(source) //提供种子
-		var randomId uint16 = uint16(rng.Intn(32768))
-	*/
-	randomId := uint16(16)
+
+	source := rand.NewSource(time.Now().UnixNano())
+	rng := rand.New(source) //提供种子
+	var randomId uint16 = uint16(rng.Intn(32768))
+
 	requestHeader := dnsHeader{
 		Id:      randomId, //期待改成随机数
 		Qucount: 1,
