@@ -121,19 +121,20 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 func parseQuestion(answerbuf []byte) (string, int) {
 	var (
 		domain                      string //字符串可以通过`+`来连接
-		bit                         int
+		bits                        int    //这里是表示有多少个英文字符和`.`
 		i                           int
 		questionclass, questiontype uint16 //通过使用接口达到任意类型
 	)
 	i = 0
 
 	for {
-		bits := int(answerbuf[0])
+		bits = int(answerbuf[i]) //表示长度的只会占1个字符！！
+		//单个字节无需考虑访问顺序，所以直接向数字那样都就可以了(解决数组越界)
 		i++
-		if bit == 0 {
+		if bits == 0 {
 			break
 		}
-		var readbuf []byte
+		readbuf := make([]byte, bits)                           //创建指定长度的切片
 		scanner := bytes.NewReader(answerbuf[i : i+bits])       //这里创建的就是一个指针
 		err := binary.Read(scanner, binary.BigEndian, &readbuf) //将二进制数据流转为字符串切片
 		if err != nil {
@@ -144,8 +145,8 @@ func parseQuestion(answerbuf []byte) (string, int) {
 	}
 	domain += "."
 
-	questiontype = binary.LittleEndian.Uint16(answerbuf[i : i+2])
-	questionclass = binary.LittleEndian.Uint16(answerbuf[i+2 : i+4]) //这两个都是2个字节
+	questiontype = binary.BigEndian.Uint16(answerbuf[i : i+2])
+	questionclass = binary.BigEndian.Uint16(answerbuf[i+2 : i+4]) //这两个都是2个字节
 	i += 4
 	var questiontype1, questionclass1 string
 	switch questiontype {
@@ -175,29 +176,39 @@ func parseQuestion(answerbuf []byte) (string, int) {
 // 暂且只支持查询A记录
 func parseResource(domain string, Ancount uint16, answerbuf []byte) int {
 	fmt.Println("Answer Section:")
-	var i uint16 = 6 //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
+	var i int = 6 //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
 	var j uint16
+	TTL := binary.BigEndian.Uint32(answerbuf[i : i+5]) //不能直接将固定的字符组转为字符串，因为字符串本质是切片
+
+	datalength := int(answerbuf[i+5])
+	i += 5
 	for j = 0; j < Ancount; j++ {
 		/*
 			TTL := uint32(answerbuf[i])<<24 + uint32(answerbuf[i+1])<<16 + uint32(answerbuf[i+2])<<8 + uint32(answerbuf[i+3])
 			var TTLbuf [4]byte
 			scanner := binary.NewReader(answerbuf[i : i+5])
 		*/
-		scanner := bytes.NewReader(answerbuf[i : i+5])
-		var TTLbuf [4]byte
-		err := binary.Read(scanner, binary.BigEndian, &TTLbuf)
-		if err != nil {
-			log.Println("Failed to parse the TTL:", err)
-		}
-		TTL := string(TTLbuf[:4]) //不能直接将固定的字符组转为字符串，因为字符串本质是切片
+		/*
+			//完全可以直接将数字转为字符串
+			scanner := bytes.NewReader(answerbuf[i : i+5])
+			var TTLbuf [4]byte
+			err := binary.Read(scanner, binary.BigEndian, &TTLbuf)
+			if err != nil {
+				log.Println("Failed to parse the TTL:", err)
+			}
+		*/
 
-		datalength := uint16(answerbuf[i+4])<<8 + uint16(answerbuf[i+5])
-		i += 6
-		data := string(answerbuf[i : i+datalength])
-		i += (datalength + 6)
+		//datalength := uint16(answerbuf[i+4])<<8 + uint16(answerbuf[i+5])
+		//之后再也不想手动操作了（哭）
+
+		//data := binary
+		//data := string(answerbuf[i : i+datalength])
+		//发现这样会乱码，想到ip地址是数字
+		data := binary.BigEndian.Uint16(answerbuf[i : i+datalength])
+		i += datalength
 		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%vs\n", domain, data, TTL)
 	}
-	return int(i)
+	return i
 }
 
 func storeOther(answerbuf []byte) (bytes.Buffer, error) {

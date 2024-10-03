@@ -3,9 +3,8 @@ package report
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"log"
-	//"math/rand"
+	"math/rand"
 	"net"
 	"strings"
 	"time"
