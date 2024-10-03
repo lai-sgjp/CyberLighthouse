@@ -29,7 +29,7 @@ type dnsQuery struct {
 	Quclass uint16
 }
 
-func ParseDN(domain string) []byte {
+func ParseDN(domain string) []byte {//这里的byte是单数！表示一个整体
 	var (
 		buffer bytes.Buffer//是大写的B
 		//bytes.Buffer是大小可变的字节管理区
