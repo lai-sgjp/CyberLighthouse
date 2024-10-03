@@ -18,7 +18,8 @@ func main() {
 	fmt.Scanf("%s", &domain)
 
 	query, sendId, queryLength, conn, duration, err := report.Send(dnsServer, domain) //DNS监听端口号常为53
-	fmt.Println(query, "\n", queryLength, "\t", duration)
+	fmt.Println(query, "\n", queryLength, "\t", duration)                             //打印发送时间
+	//这里打印出来全为0？
 	if err != nil {
 		log.Fatal("Failed to send the query to  the DNS server:", err.Error())
 	}
@@ -27,4 +28,5 @@ func main() {
 		log.Fatal("Parse Error:", err.Error())
 	}
 	fmt.Printf("{%v}\n", otherbuf)
+	conn.Close()
 }

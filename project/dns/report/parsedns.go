@@ -2,6 +2,7 @@ package report
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
@@ -21,6 +22,7 @@ func caseJustify(a uint16) bool {
 func Parse(queryLength int, sendId uint16, conn net.Conn) (bytes.Buffer, error) {
 	answerbuf := make([]byte, 512)
 	answerLength, err := conn.Read(answerbuf) //这里的answerbuf是[]byte类型
+	log.Println(answerbuf)
 
 	//对响应报文进行检查
 	if err != nil {
@@ -51,6 +53,7 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) (bytes.Buffer, error) 
 func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, error) {
 	recvId := uint16(answerbuf[0])<<8 + uint16(answerbuf[1]) //进行“移位”就是字节转为数字的方法
 	if recvId != sendId || answerLength <= queryLength {     //将数字转为字节再进行比较||将字节转为数字
+		log.Printf("Received ID:%v\nSend ID:%v", recvId, sendId)
 		log.Printf("Failed to receive the correct response from the DNS server\n")
 	}
 
@@ -59,10 +62,11 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 	//解析头部
 	//注意：i++是不能直接放在其他语句块的里面（这与C很不同）
 	var AA, TC, RD, RA, Rcode, Opcode uint16
-
-	flags := uint16(answerbuf[2])<<8 + uint16(answerbuf[3])
-	Rcode = flags & 0x1111
-	flags >>= (4 + 3) //有保留位3位
+	//网络编程里面统一采用大端法
+	flags := uint16(answerbuf[2])<<8 + uint16(answerbuf[3]) //因为是大端法，所以先读取rcode
+	//这里原来可以直接用binary.Read(*byte.reader,encoding_way,buffer)啊
+	Rcode = flags & 0xF //0x表示16进制，所以不是0x1111，而是0xF(曲后4位)
+	flags >>= (4 + 3)   //有保留位3位
 	RA = flags & 0x1
 	flags >>= 1
 	RD = flags & 0x1
@@ -71,7 +75,7 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 	flags >>= 1
 	AA = flags & 0x1
 	flags >>= 1
-	Opcode = flags & 0x1111
+	Opcode = flags & 0xF
 	flags >>= 4
 	QR := flags
 
@@ -119,42 +123,52 @@ func parseQuestion(answerbuf []byte) (string, int) {
 		domain                      string //字符串可以通过`+`来连接
 		bit                         int
 		i                           int
-		questionclass, questiontype interface{} //通过使用接口达到任意类型
+		questionclass, questiontype uint16 //通过使用接口达到任意类型
 	)
 	i = 0
+
 	for {
 		bits := int(answerbuf[0])
 		i++
 		if bit == 0 {
 			break
 		}
-		domain += (string(answerbuf[i:i+bits]) + ".")
+		var readbuf []byte
+		scanner := bytes.NewReader(answerbuf[i : i+bits])       //这里创建的就是一个指针
+		err := binary.Read(scanner, binary.BigEndian, &readbuf) //将二进制数据流转为字符串切片
+		if err != nil {
+			log.Println("Failed to read the domain:", err.Error())
+		}
+		domain += (string(readbuf) + ".")
 		i += bits //以ACSII码进行存储，一个英文字符占一个字节
 	}
-	questiontype = answerbuf[i : i+2]
-	questionclass = answerbuf[i+2 : i+4] //这两个都是2个字节
+	domain += "."
+
+	questiontype = binary.LittleEndian.Uint16(answerbuf[i : i+2])
+	questionclass = binary.LittleEndian.Uint16(answerbuf[i+2 : i+4]) //这两个都是2个字节
 	i += 4
+	var questiontype1, questionclass1 string
 	switch questiontype {
 	case 1:
-		questiontype = "A"
+		questiontype1 = "A"
 	case 2:
-		questiontype = "NS"
+		questiontype1 = "NS"
 	case 5:
-		questiontype = "CNAME"
+		questiontype1 = "CNAME"
 	case 15:
-		questiontype = "MX"
+		questiontype1 = "MX"
 	case 16:
-		questiontype = "TXT"
+		questiontype1 = "TXT"
 	case 28:
-		questiontype = "AAAA"
+		questiontype1 = "AAAA"
 	}
 	if questionclass == 1 {
-		questionclass = "TCP/IP"
+		questionclass1 = "TCP/IP"
 	}
 
-	fmt.Println("Quextion section:")
-	fmt.Printf("%s\t\t\tIN\t%v\n", domain, questiontype)
-	fmt.Printf("%v\n", questionclass)
+	fmt.Println("Question section:")
+	fmt.Printf("%s\t\t\tIN\t%v\n", domain, questiontype1)
+	fmt.Printf("%v\n", questionclass1)
 	return domain, i + 1
 }
 
@@ -164,12 +178,24 @@ func parseResource(domain string, Ancount uint16, answerbuf []byte) int {
 	var i uint16 = 6 //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
 	var j uint16
 	for j = 0; j < Ancount; j++ {
-		TTL := uint32(answerbuf[i])<<24 + uint32(answerbuf[i+1])<<16 + uint32(answerbuf[i+2])<<8 + uint32(answerbuf[i+3])
+		/*
+			TTL := uint32(answerbuf[i])<<24 + uint32(answerbuf[i+1])<<16 + uint32(answerbuf[i+2])<<8 + uint32(answerbuf[i+3])
+			var TTLbuf [4]byte
+			scanner := binary.NewReader(answerbuf[i : i+5])
+		*/
+		scanner := bytes.NewReader(answerbuf[i : i+5])
+		var TTLbuf [4]byte
+		err := binary.Read(scanner, binary.BigEndian, &TTLbuf)
+		if err != nil {
+			log.Println("Failed to parse the TTL:", err)
+		}
+		TTL := string(TTLbuf[:4]) //不能直接将固定的字符组转为字符串，因为字符串本质是切片
+
 		datalength := uint16(answerbuf[i+4])<<8 + uint16(answerbuf[i+5])
 		i += 6
 		data := string(answerbuf[i : i+datalength])
 		i += (datalength + 6)
-		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%v\n", domain, data, TTL)
+		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%vs\n", domain, data, TTL)
 	}
 	return int(i)
 }

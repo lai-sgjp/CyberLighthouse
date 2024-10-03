@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
-	"math/rand"
+	//"math/rand"
 	"net"
 	"strings"
 	"time"
@@ -40,8 +40,8 @@ func ParseDN(domain string) []byte { //这里的byte是单数！表示一个整�
 	//可以强调这个函数里面有哪些，生命周期就在这一个函数
 	for _, seg := range segments {
 		//第一句话表示将长度写入，第二局话表示将域名写入
-		binary.Write(&buffer, binary.LittleEndian, byte(len(seg)))
-		binary.Write(&buffer, binary.LittleEndian, []byte(seg))
+		binary.Write(&buffer, binary.BigEndian, byte(len(seg)))
+		binary.Write(&buffer, binary.BigEndian, []byte(seg))
 		/*
 					fileSize := filestatus.Size()
 			binary.Write(conn,binary.LittleEndian,fileSize)
@@ -53,10 +53,14 @@ func ParseDN(domain string) []byte { //这里的byte是单数！表示一个整�
 	return buffer.Bytes()
 }
 
-func Send(dnsServer, domain string) ([]byte, uint16, int, net.Conn, time.Duration, error) { //最后一个表示一段时长，以秒作为单位
-	source := rand.NewSource(time.Now().UnixNano())
-	rng := rand.New(source) //提供种子
-	var randomId uint16 = uint16(rng.Intn(32768))
+func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.Duration, error) { //最后一个表示一段时长，以秒作为单位
+	/*
+		//先进行测试，因为发现发送和接收的ID不一样，先固定看一下是不是随机数生成两次的问题
+		source := rand.NewSource(time.Now().UnixNano())
+		rng := rand.New(source) //提供种子
+		var randomId uint16 = uint16(rng.Intn(32768))
+	*/
+	randomId := uint16(16)
 	requestHeader := dnsHeader{
 		Id:      randomId, //期待改成随机数
 		Qucount: 1,
@@ -88,28 +92,30 @@ func Send(dnsServer, domain string) ([]byte, uint16, int, net.Conn, time.Duratio
 
 	if err != nil {
 		log.Printf("Failed to connect:%v\n", err.Error())
-		return make([]byte, 0), 0, 0, conn, time.Duration(0), err
+		return bytes.Buffer{}, 0, 0, conn, time.Duration(0), err
 	}
-	defer conn.Close() //defer是在它之下的代码执行之后有异常才会断，上面是没有异常的
+	//defer conn.Close() //defer是在它之下的代码执行之后有异常才会断，上面是没有异常的
+	//这里不要关啊！后面还要收取的时候还要用的！
 
 	//分3端写表示3个部分，连续追加。当然可以写在一串，这样写逻辑更加清晰
 	//问题部分一定是name->type->class
-	binary.Write(&buffer, binary.LittleEndian, requestHeader)
-	binary.Write(&buffer, binary.LittleEndian, ParseDN(domain))
-	binary.Write(&buffer, binary.LittleEndian, requestQuery)
-	fmt.Printf("%v\n", buffer)
+	//注意，一定是大端法传输！
+	binary.Write(&buffer, binary.BigEndian, requestHeader)
+	binary.Write(&buffer, binary.BigEndian, ParseDN(domain))
+	binary.Write(&buffer, binary.BigEndian, requestQuery)
 
-	buf := make([]byte, 1024)
 	t1 := time.Now()
 	_, err = conn.Write(buffer.Bytes())
 	//buffer.Bytes是返回目前缓冲区所有的内容
 	if err != nil {
 		log.Printf("Failed to send the DNS query:%v\n", err.Error())
-		return make([]byte, 0), 0, 0, conn, time.Duration(0), err
+		return bytes.Buffer{}, 0, 0, conn, time.Duration(0), err
 	}
 	requestLength := buffer.Len() //为了解析而使用//注意这里是变长的，应该使用方法.Len()
 
-	duration := time.Now().Sub(t1) /*
+	duration := time.Since(t1)
+	//这里使用time.Since而不是用time.Now().Sub()
+	/*
 		responseLength, err:= conn.Read(buf)
 		if err != nil {
 			log.Printf("Failed to read the DNS response:%v\n",err.Error())
@@ -117,5 +123,5 @@ func Send(dnsServer, domain string) ([]byte, uint16, int, net.Conn, time.Duratio
 		}
 		duration := time.Now().Sub(t1)
 	*/
-	return buf, randomId, requestLength, conn, duration, nil
+	return buffer, randomId, requestLength, conn, duration, nil
 }
