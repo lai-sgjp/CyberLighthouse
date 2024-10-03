@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"example1.com/tran"
+	"CyberLighthouse/tran"
 )
 
 func getport() ([]string, error) {
@@ -24,8 +24,6 @@ func getport() ([]string, error) {
 	return ports, nil
 }
 
-
-
 func main() {
 	ports, err := getport()
 	if err != nil {
@@ -33,14 +31,13 @@ func main() {
 	}
 
 	fmt.Println("Whether turn on the UDP service or not(y/n)")
-	var choice rune 
+	var choice rune
 	fmt.Scanln("%v", &choice)
 	if choice == 'y' {
 		go tran.CreateUDPSer(ports)
-	}else{
+	} else {
 		go tran.CreateTCPSer(ports)
 	}
-
 
 	select {} //保持server端长时间不关闭
 }
