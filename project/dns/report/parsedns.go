@@ -16,18 +16,16 @@ func caseJustify(a uint16) bool {
 		return true
 	}
 	return false
-} //接口判断必须先进行类型断言
-//除了main函数外，不能再一个函数里面定义一个函数（最好main也不要）
-
+}
 func Parse(queryLength int, sendId uint16, conn net.Conn) (bytes.Buffer, error) {
 	answerbuf := make([]byte, 512)
-	answerLength, err := conn.Read(answerbuf) //这里的answerbuf是[]byte类型
+	answerLength, err := conn.Read(answerbuf)
 	log.Println(answerbuf)
 
 	//对响应报文进行检查
 	if err != nil {
 		log.Printf("Failed to receive the response from the DNS server:%v\n", err.Error())
-		return bytes.Buffer{}, err //注意返回一个空这里是这样写的（依据类型的定义）
+		return bytes.Buffer{}, err
 	}
 
 	Ancount, err := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
@@ -51,8 +49,8 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) (bytes.Buffer, error) 
 }
 
 func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, error) {
-	recvId := uint16(answerbuf[0])<<8 + uint16(answerbuf[1]) //进行“移位”就是字节转为数字的方法
-	if recvId != sendId || answerLength <= queryLength {     //将数字转为字节再进行比较||将字节转为数字
+	recvId := uint16(answerbuf[0])<<8 + uint16(answerbuf[1]) //完全可以自动化不用手动
+	if recvId != sendId || answerLength <= queryLength {
 		log.Printf("Received ID:%v\nSend ID:%v", recvId, sendId)
 		log.Printf("Failed to receive the correct response from the DNS server\n")
 	}
@@ -60,13 +58,12 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 	//开始解析
 
 	//解析头部
-	//注意：i++是不能直接放在其他语句块的里面（这与C很不同）
 	var AA, TC, RD, RA, Rcode, Opcode uint16
 	//网络编程里面统一采用大端法
 	flags := uint16(answerbuf[2])<<8 + uint16(answerbuf[3]) //因为是大端法，所以先读取rcode
 	//这里原来可以直接用binary.Read(*byte.reader,encoding_way,buffer)啊
-	Rcode = flags & 0xF //0x表示16进制，所以不是0x1111，而是0xF(曲后4位)
-	flags >>= (4 + 3)   //有保留位3位
+	Rcode = flags & 0xF
+	flags >>= (4 + 3)
 	RA = flags & 0x1
 	flags >>= 1
 	RD = flags & 0x1
@@ -116,37 +113,34 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 	return Ancount, nil
 }
 
-// 暂且只支持查询一个
-// func parseQuestion(answerbuf []byte,questiontype int,questionClass int) error {
 func parseQuestion(answerbuf []byte) (string, int) {
 	var (
-		domain                      string //字符串可以通过`+`来连接
-		bits                        int    //这里是表示有多少个英文字符和`.`
+		domain                      string
+		bits                        int
 		i                           int
-		questionclass, questiontype uint16 //通过使用接口达到任意类型
+		questionclass, questiontype uint16
 	)
 	i = 0
 
 	for {
 		bits = int(answerbuf[i]) //表示长度的只会占1个字符！！
-		//单个字节无需考虑访问顺序，所以直接向数字那样都就可以了(解决数组越界)
 		i++
 		if bits == 0 {
 			break
 		}
-		readbuf := make([]byte, bits)                           //创建指定长度的切片
-		scanner := bytes.NewReader(answerbuf[i : i+bits])       //这里创建的就是一个指针
-		err := binary.Read(scanner, binary.BigEndian, &readbuf) //将二进制数据流转为字符串切片
+		readbuf := make([]byte, bits)
+		scanner := bytes.NewReader(answerbuf[i : i+bits])
+		err := binary.Read(scanner, binary.BigEndian, &readbuf)
 		if err != nil {
 			log.Println("Failed to read the domain:", err.Error())
 		}
 		domain += (string(readbuf) + ".")
-		i += bits //以ACSII码进行存储，一个英文字符占一个字节
+		i += bits
 	}
 	domain += "."
 
 	questiontype = binary.BigEndian.Uint16(answerbuf[i : i+2])
-	questionclass = binary.BigEndian.Uint16(answerbuf[i+2 : i+4]) //这两个都是2个字节
+	questionclass = binary.BigEndian.Uint16(answerbuf[i+2 : i+4])
 	i += 4
 	var questiontype1, questionclass1 string
 	switch questiontype {
@@ -173,37 +167,15 @@ func parseQuestion(answerbuf []byte) (string, int) {
 	return domain, i + 1
 }
 
-// 暂且只支持查询A记录
 func parseResource(domain string, Ancount uint16, answerbuf []byte) int {
 	fmt.Println("Answer Section:")
 	var i int = 6 //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
 	var j uint16
-	TTL := binary.BigEndian.Uint32(answerbuf[i : i+5]) //不能直接将固定的字符组转为字符串，因为字符串本质是切片
+	TTL := binary.BigEndian.Uint32(answerbuf[i : i+5])
 
 	datalength := int(answerbuf[i+5])
 	i += 5
 	for j = 0; j < Ancount; j++ {
-		/*
-			TTL := uint32(answerbuf[i])<<24 + uint32(answerbuf[i+1])<<16 + uint32(answerbuf[i+2])<<8 + uint32(answerbuf[i+3])
-			var TTLbuf [4]byte
-			scanner := binary.NewReader(answerbuf[i : i+5])
-		*/
-		/*
-			//完全可以直接将数字转为字符串
-			scanner := bytes.NewReader(answerbuf[i : i+5])
-			var TTLbuf [4]byte
-			err := binary.Read(scanner, binary.BigEndian, &TTLbuf)
-			if err != nil {
-				log.Println("Failed to parse the TTL:", err)
-			}
-		*/
-
-		//datalength := uint16(answerbuf[i+4])<<8 + uint16(answerbuf[i+5])
-		//之后再也不想手动操作了（哭）
-
-		//data := binary
-		//data := string(answerbuf[i : i+datalength])
-		//发现这样会乱码，想到ip地址是数字
 		data := binary.BigEndian.Uint16(answerbuf[i : i+datalength])
 		i += datalength
 		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%vs\n", domain, data, TTL)
@@ -214,6 +186,5 @@ func parseResource(domain string, Ancount uint16, answerbuf []byte) int {
 func storeOther(answerbuf []byte) (bytes.Buffer, error) {
 	var other bytes.Buffer
 	_, err := other.Write(answerbuf) //联想：二进制binary.Write(*otr->buffer,way,context)注意Write的W是大写的
-	//这里的write相当于类的实现方法
 	return other, err
 }

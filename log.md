@@ -87,3 +87,5 @@
     >参考:*https://www.cnblogs.com/chase-wind/p/6814053.html?utm_campaign=studygolang.com&utm_medium=studygolang.com&utm_source=studygolang.com*
 - 0130:成功实现DNS发送请求报文，但还差解析响应报文
     >问题：向8.8.8.8:53发送B站和Bing的两次一样，且后面全为0.而用1.1.1.1:53则是前一个问题得到解决
+## 2024.10.03
+- 完成task3!

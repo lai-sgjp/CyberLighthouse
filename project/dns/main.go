@@ -7,21 +7,17 @@ import (
 )
 
 func main() {
-	//低配版,输入网址
-	/*方便测试，全改为bing
-	fmt.Println("Please enter a DNS server and the port(usually 53):")
+	fmt.Println("Please enter a DNS server and the port(port usually is 53):") //期待加上超时
 	var dnsServer string
 	fmt.Scanf("%s", &dnsServer)
 
 	fmt.Println("Please enter which domain address you want to analyse:")
 	var domain string
 	fmt.Scanf("%s", &domain)
-	*/
-	dnsServer := "1.1.1.1:53"
-	domain := "www.bing.com"
-	query, sendId, queryLength, conn, duration, err := report.Send(dnsServer, domain) //DNS监听端口号常为53
-	fmt.Println(query, "\n", queryLength, "\t", duration)                             //打印发送时间
-	//这里打印出来全为0？
+
+	query, sendId, queryLength, conn, duration, err := report.Send(dnsServer, domain)
+	fmt.Println(query, "\n", queryLength, "\t", duration)
+
 	if err != nil {
 		log.Fatal("Failed to send the query to  the DNS server:", err.Error())
 	}
