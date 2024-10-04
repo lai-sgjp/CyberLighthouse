@@ -1,8 +1,10 @@
 package tran
 
 import (
+	"bufio"
 	"log"
 	"net"
+	"strings"
 )
 
 func CreateUDPSer(ports []string) {
@@ -10,47 +12,48 @@ func CreateUDPSer(ports []string) {
 		//建立端口地址
 		addr, err := net.ResolveUDPAddr("udp", ":"+port)
 		if err != nil {
-			log.Printf("Failed to get the correct UDP address %s: %v\n", port, err)
+			log.Printf("Failed to get the correct UDP address %s: %v\n", port, err.Error())
 			continue
 		}
 
 		//开始监听(或者说是连接)
 		conn, err := net.ListenUDP("udp", addr)
 		if err != nil {
-			log.Printf("Failed to listen to UDP port %s:%v\n", port, err)
+			log.Printf("Failed to listen to UDP port %s:%v\n", port, err.Error())
 			continue
 		}
-
 		go ProcessUDP(conn)
 	}
+
 }
 
 func ProcessUDP(conn *net.UDPConn) {
-
+	scanner := bufio.NewReader(conn)
 	//defer conn.Close()
-	buf := make([]byte, 8)
-	n, _, err := conn.ReadFromUDP(buf)
-	typeinfo := string(buf[0])
-	if err != nil {
-		log.Printf("Failed to recieve type from the client:%v\n", err)
-		conn.Close()
-		return
-	}
-	switch typeinfo {
-	case "0":
-		//newBuf := make([]byte, 2048)
-		for {
-			err := textModeudp(conn, buf[1:n])
-			if err != nil {
-				break
+	for {
+		buf, err := scanner.ReadString('\n')
+		if err != nil {
+			log.Println("Failer to read the type and message sent by client:", err.Error())
+			conn.Close()
+			return
+		}
+		typeinfo := string(buf[0])
+		switch typeinfo {
+		case "0":
+			for {
+				buf, err := scanner.ReadString('\n')
+				buf = strings.TrimSpace(buf)
+				err = textModeudp(conn, buf[:len(buf)-1])
+				if err != nil {
+					log.Println("Failed to read the message:", err.Error())
+					conn.Close()
+					return
+				}
 			}
-		}
-	case "1":
-		for {
+		case "1":
 			fileModeudp(conn)
+		default:
+			log.Printf("Disapproval type:%c\n", typeinfo)
 		}
-	default:
-		log.Printf("Disapproval type:%v\n", err)
-		//conn.Close()
 	}
 }

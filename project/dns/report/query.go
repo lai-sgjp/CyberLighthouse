@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	"fmt"
 )
 
 // 报文头部
@@ -58,11 +59,21 @@ func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.D
 
 	requestHeader.Flag(0, 0, 0, 0, 1, 0, 0)
 
-	//请求的域名
-	requestQuery := dnsQuery{
+	fmt.Println("Which type of the record do you want to check?(A,AAAA,NS,CNAME,MX,TXT)")
+	var choice string
+	fmt.Scanf("%s",&choice)
+	switch choice {
+	case "A":
+		requestQuery := dnsQuery{
 		Qutype:  1,
 		Quclass: 1,
+		case "NS":
+			
+
 	}
+	}
+	//请求的域名
+	
 
 	var (
 		conn   net.Conn

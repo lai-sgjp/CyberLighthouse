@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"strings"
 
@@ -35,14 +34,15 @@ func main() {
 				}
 				continue
 			}
-			var conn net.Conn
 			switch *protocolptr {
 			case "tcp":
-				conn = tran_c.CreateTCPConn(*addrptr)
+				conn := tran_c.CreateTCPConn(*addrptr)
+				tran_c.SendFile(conn, *contextptr)
 			case "udp":
-				conn = tran_c.CreateUDPConn(*addrptr)
+				_, conn := tran_c.CreateUDPConn(*addrptr)
+				tran_c.SendFileUDP(conn, *contextptr) //想着能不能用接口进行类型断言然后使用？
 			}
-			tran_c.SendFile(conn, *contextptr)
+
 			return
 		}
 

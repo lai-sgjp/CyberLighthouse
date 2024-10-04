@@ -53,8 +53,8 @@ func fileMode(conn net.Conn) {
 
 // udp模式下
 // 埋下一个坑：下客户端发送成功
-func textModeudp(conn *net.UDPConn, newBuf []byte) error {
-	n, clientAddr, err := conn.ReadFromUDP(newBuf)
+func textModeudp(conn *net.UDPConn, newBuf string) error {
+	n, clientAddr, err := conn.ReadFromUDP([]byte(newBuf))
 	if err != nil {
 		log.Printf("Failed to recieve message from the client:%v\n", err)
 		conn.Close()
@@ -63,7 +63,7 @@ func textModeudp(conn *net.UDPConn, newBuf []byte) error {
 	message := string(newBuf[:n])
 	fmt.Printf("%s", message)
 
-	_, err = conn.WriteToUDP(newBuf[:n], clientAddr)
+	_, err = conn.WriteToUDP([]byte(newBuf[:n]), clientAddr)
 	if err != nil {
 		log.Printf("Failed to send message to the client:%v\n", err)
 		conn.Close()

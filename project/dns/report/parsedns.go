@@ -19,9 +19,26 @@ func caseJustify(a uint16) bool {
 	return false
 }
 
+type DnsHeader struct {
+	RecvId                             uint16
+	AA, TC, RD, RA                     bool
+	Rcode, Opcode                      string
+	Qucount, Aucount, Ancount, Adcount uint16
+}
+type Question struct {
+	Domain                      string
+	Questionclass, Questiontype uint16
+}
+type Resource struct {
+	TTL  uint32
+	Data string
+}
 type returninfomation struct {
-	Other bytes.Buffer
-	Err   error
+	Other       bytes.Buffer
+	Err         error
+	DNSHeader   DnsHeader
+	DNSQuestion Question
+	DNSResource []Resource
 }
 
 // 如果使用空接口，必须先进行类型断言在进行数值接收
@@ -32,7 +49,7 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 
 	answerbuf := make([]byte, 512)
 	answerLength, err := conn.Read(answerbuf)
-	log.Println(answerbuf)
+	//log.Println(answerbuf)
 
 	//对响应报文进行检查
 	if err != nil {
@@ -46,7 +63,7 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 		return ch
 	}
 
-	Ancount, err := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
+	Ancount, err, header := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
 	if err != nil {
 		log.Printf("Failed to parse the header:%v\n", err.Error())
 		returninfo := returninfomation{
@@ -58,9 +75,9 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 		return ch
 	}
 
-	domain, questionlength := parseQuestion(answerbuf[12:])
+	domain, questionlength, question := parseQuestion(answerbuf[12:])
 	//到底这里应该用uint16还是int?之后统一改成uint16吧（埋一个坑）
-	resourcelength := parseResource(domain, Ancount, answerbuf[12+questionlength:])
+	resourcelength, ResourceList := parseResource(domain, Ancount, answerbuf[12+questionlength:])
 	if len(answerbuf) == 12+questionlength+resourcelength {
 		returninfo := returninfomation{
 			Other: bytes.Buffer{},
@@ -82,8 +99,11 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 		return ch
 	}
 	returninfo := returninfomation{
-		Other: other,
-		Err:   nil,
+		Other:       other,
+		Err:         nil,
+		DNSHeader:   header,
+		DNSQuestion: question,
+		DNSResource: ResourceList,
 	}
 	ch <- returninfo
 	close(ch)
@@ -92,7 +112,7 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 	return ch
 }
 
-func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, error) {
+func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, error, DnsHeader) {
 	recvId := uint16(answerbuf[0])<<8 + uint16(answerbuf[1]) //完全可以自动化不用手动
 	if recvId != sendId || answerLength <= queryLength {
 		log.Printf("Received ID:%v\nSend ID:%v", recvId, sendId)
@@ -123,7 +143,7 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 
 	if QR != 1 {
 		log.Printf("Answer received is not the response from the DNS server\n")
-		return 0, nil
+		return 0, nil, DnsHeader{}
 	}
 	var Opcode1, Rcode1 string
 	switch Opcode {
@@ -147,18 +167,25 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 		Rcode1 = "Name Error"
 	}
 
-	Qucount := uint16(answerbuf[4])<<8 + uint16(answerbuf[5])
-	Ancount := uint16(answerbuf[6])<<8 + uint16(answerbuf[7])
-	Aucount := uint16(answerbuf[8])<<8 + uint16(answerbuf[9])
-	Adcount := uint16(answerbuf[10])<<8 + uint16(answerbuf[11])
+	qucount := uint16(answerbuf[4])<<8 + uint16(answerbuf[5])
+	ancount := uint16(answerbuf[6])<<8 + uint16(answerbuf[7])
+	aucount := uint16(answerbuf[8])<<8 + uint16(answerbuf[9])
+	adcount := uint16(answerbuf[10])<<8 + uint16(answerbuf[11])
 	fmt.Println("Header:")
 	fmt.Printf("status:%v\tid:%d\n", Rcode1, recvId)
 	fmt.Printf("Opcode:%v\tauthoritative answer:%v\ttruncated :%v\nrecursion desired:%v\trecursion available:%v\n", Opcode1, AA1, TC1, RD1, RA1)
-	fmt.Printf("question count:%d\tanswer count:%d\tauthority record count:%d\tadditional record count:%d\n", Qucount, Ancount, Aucount, Adcount)
-	return Ancount, nil
+	fmt.Printf("question count:%d\tanswer count:%d\tauthority record count:%d\tadditional record count:%d\n", qucount, ancount, aucount, adcount)
+	header := DnsHeader{
+		RecvId: recvId,
+		AA:     AA1, TC: TC1, RD: RD1, RA: RA1,
+		Rcode:   Rcode1,
+		Opcode:  Opcode1,
+		Qucount: qucount, Ancount: ancount, Aucount: aucount, Adcount: adcount,
+	}
+	return ancount, nil, header
 }
 
-func parseQuestion(answerbuf []byte) (string, int) {
+func parseQuestion(answerbuf []byte) (string, int, Question) {
 	var (
 		domain                      string
 		bits                        int
@@ -208,19 +235,24 @@ func parseQuestion(answerbuf []byte) (string, int) {
 	fmt.Println("Question section:")
 	fmt.Printf("%s\t\t\tIN\t%v\n", domain, questiontype1)
 	fmt.Printf("%v\n", questionclass1)
-	return domain, i + 1
+	question := Question{
+		Domain:        domain,
+		Questiontype:  questiontype,
+		Questionclass: questionclass,
+	}
+	return domain, i + 1, question
 }
 
-func parseResource(domain string, Ancount uint16, answerbuf []byte) int {
+func parseResource(domain string, ancount uint16, answerbuf []byte) (int, []Resource) {
 	fmt.Println("Answer Section:")
 	var i int = 6 //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
 	var j uint16
-	TTL := binary.BigEndian.Uint32(answerbuf[i : i+5])
+	ttl := binary.BigEndian.Uint32(answerbuf[i : i+5])
 	var data string
 	datalength := int(answerbuf[i+5])
-	fmt.Println(datalength) //用于测试
 	i += 5
-	for j = 0; j < Ancount; j++ {
+	ResourceList := make([]Resource, ancount)
+	for j = 0; j < ancount; j++ {
 		for k := 0; k < datalength; k++ {
 			var tmp int
 			if k == 0 {
@@ -231,10 +263,14 @@ func parseResource(domain string, Ancount uint16, answerbuf []byte) int {
 			tmp = int(answerbuf[i+k])
 			data = fmt.Sprintf(data+"."+"%d", tmp)
 		}
+		ResourceList[j] = Resource{
+			TTL:  ttl,
+			Data: data,
+		}
 		i += datalength
-		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%vs\n", domain, data, TTL)
+		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%vs\n", domain, data, ttl)
 	}
-	return i
+	return i, ResourceList
 }
 
 func storeOther(answerbuf []byte) (bytes.Buffer, error) {

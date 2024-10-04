@@ -27,13 +27,17 @@ func CreateTCPConn(addr string) net.Conn {
 }
 
 // 创立指定连接UDP
-func CreateUDPConn(addr string) net.Conn {
-	conn, err := net.Dial("udp", addr)
+func CreateUDPConn(addr string) (*net.UDPAddr, *net.UDPConn) {
+	serverAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		log.Println("Failed to resolve the UDP address:", err.Error())
+	}
+	conn, err := net.DialUDP("udp", nil, serverAddr) //UDP一定要使用专用
 
 	if err != nil {
 		log.Fatal("Failed to dial:", err)
 	}
-	return conn
+	return serverAddr, conn
 }
 
 // 选择某一个指定的连接(默认模式下)
@@ -60,20 +64,20 @@ func Choose(tran string, addr string, message string) {
 			}
 			err = defaultSend(conn, message)
 			if err != nil {
-				log.Println("Failed to send the message.", err.Error())
+				log.Println("Failed to send the message:", err.Error())
 				break
 			}
 			message = ""
 		}
 	case "udp":
-		conn := CreateUDPConn(addr)
+		_, conn := CreateUDPConn(addr)
 		defer conn.Close()
 		for i := 0; i < 10; i++ {
-			typeinfo := fmt.Sprintf("%d", 0)
-			_, err := conn.Write([]byte(typeinfo))
+			typeinfo := fmt.Sprintf("%d\n", 0)
+			_, err := conn.Write([]byte(typeinfo)) //前面创建了一个预连接，后面就无需writetoUDP,这会导致重复连接
 			if err != nil {
-				log.Println("Failed to send the type", err.Error())
-				return
+				log.Println("Failed to send the type:", err.Error())
+				continue
 			}
 			if message == "" {
 				message, err = Message()
@@ -82,11 +86,12 @@ func Choose(tran string, addr string, message string) {
 					continue
 				}
 			}
-			err = defaultSend(conn, message)
+			err = defaultSendUDP(conn, message)
 			if err != nil {
-				log.Println("Faile to send the message.", err.Error())
+				log.Println("Failed to send the message.", err.Error())
 				break
 			}
+			message = ""
 		}
 	}
 }
