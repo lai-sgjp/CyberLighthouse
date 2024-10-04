@@ -3,12 +3,12 @@ package report
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"strings"
 	"time"
-	"fmt"
 )
 
 // 报文头部
@@ -61,19 +61,47 @@ func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.D
 
 	fmt.Println("Which type of the record do you want to check?(A,AAAA,NS,CNAME,MX,TXT)")
 	var choice string
-	fmt.Scanf("%s",&choice)
-	switch choice {
+	fmt.Scanf("%s", &choice)
+	var requestQuery dnsQuery
+	switch strings.ToUpper(choice) {
 	case "A":
-		requestQuery := dnsQuery{
-		Qutype:  1,
-		Quclass: 1,
-		case "NS":
-			
-
-	}
+		requestQuery = dnsQuery{
+			Qutype:  1,
+			Quclass: 1,
+		}
+	case "NS":
+		requestQuery = dnsQuery{
+			Qutype:  2,
+			Quclass: 1,
+		}
+	case "CNAME":
+		requestQuery = dnsQuery{
+			Qutype:  5,
+			Quclass: 1,
+		}
+	case "MX":
+		requestQuery = dnsQuery{
+			Qutype:  15,
+			Quclass: 1,
+		}
+	case "TXT":
+		requestQuery = dnsQuery{
+			Qutype:  16,
+			Quclass: 1,
+		}
+	case "AAAA":
+		requestQuery = dnsQuery{
+			Qutype:  28,
+			Quclass: 1,
+		}
+	default:
+		fmt.Println("We don't support the type of question.Instead we wil ask for A record for you.")
+		requestQuery = dnsQuery{
+			Qutype:  1,
+			Quclass: 1,
+		}
 	}
 	//请求的域名
-	
 
 	var (
 		conn   net.Conn

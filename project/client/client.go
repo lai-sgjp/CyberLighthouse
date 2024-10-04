@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"CyberLighthouse/dns/main"
 	"CyberLighthouse/tran_c"
 )
 
@@ -18,11 +19,33 @@ func main() {
 	}
 
 	protocolptr := flag.String("p", "tcp", "which protocol do you want to use(tcp/udp)")
-	addrptr := flag.String("a", "127.0.0.1:8080", "which address do you want to send message") //a是go run的保留字
-	modeptr := flag.String("m", "string", "which mode do you want to use(string/file)")        //感觉传整数和数字都一样。不如最后接收时转类型？
-	contextptr := flag.String("c", "", "what do you want to send")
+	addrptr := flag.String("a", "127.0.0.1:8080", "which address do you want to send message/ask for the DNS server") //a是go run的保留字
+	modeptr := flag.String("m", "string", "which mode do you want to use(string/file)")                               //感觉传整数和数字都一样。不如最后接收时转类型？
+	contextptr := flag.String("c", "", "what do you want to send/which domain you want to ask")
+	dnsptr := flag.Bool("dns", false, "whether ask for the DNS server or not(true/false).If you choose \"true\",you can define \"-a\" and \"-c\"")
 
 	flag.Parse()
+	if *dnsptr {
+		if (strings.Replace(*addrptr, " ", "", -1) == "") || (*addrptr == "127.0.0.1:8080") {
+			fmt.Println("Please enter a DNS server and the port(port usually is 53):") //期待加上超时
+			fmt.Scanf("%s", addrptr)
+			if (strings.Replace(*addrptr, " ", "", -1) == "") || (*addrptr == "127.0.0.1:8080") {
+				log.Println("Since you enter nothing/break, we will use 8.8.8.8:53 by default.")
+				*addrptr = "8.8.8.8:53"
+			}
+		}
+		if *contextptr == "" {
+			fmt.Println("Please enter which domain address you want to analyse:")
+			var domain string
+			fmt.Scanf("%s", &domain)
+			if strings.Replace(*addrptr, " ", "", -1) == "" {
+				log.Println("Since you enter nothing/break, we will exit the pocess.")
+				os.Exit(1)
+			}
+		}
+		dns.DNS(*addrptr, *contextptr)
+		return
+	}
 	if *modeptr == "file" {
 		for {
 			if *contextptr == "" {

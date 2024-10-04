@@ -1,5 +1,7 @@
 package main
 
+//必须为main不然不能运行
+
 import (
 	"CyberLighthouse/dns/report"
 	"encoding/json"
@@ -15,11 +17,23 @@ func main() {
 	fmt.Println("Please enter a DNS server and the port(port usually is 53):") //期待加上超时
 	var dnsServer string
 	fmt.Scanf("%s", &dnsServer)
+	if strings.Replace(dnsServer, " ", "", -1) == "" {
+		log.Println("Since you enter nothing/break, we will use 8.8.8.8:53 by default.")
+		dnsServer = "8.8.8.8:53"
+	}
 
 	fmt.Println("Please enter which domain address you want to analyse:")
 	var domain string
 	fmt.Scanf("%s", &domain)
+	if strings.Replace(dnsServer, " ", "", -1) == "" {
+		log.Println("Since you enter nothing/break, we will exit the pocess.")
+		os.Exit(1)
+	}
+	DNS(dnsServer, domain)
 
+}
+
+func DNS(dnsServer, domain string) {
 	_, sendId, queryLength, conn, duration, err := report.Send(dnsServer, domain)
 	if err != nil {
 		log.Fatal("Failed to send the query to  the DNS server:", err.Error())

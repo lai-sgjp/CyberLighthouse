@@ -49,7 +49,6 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 
 	answerbuf := make([]byte, 512)
 	answerLength, err := conn.Read(answerbuf)
-	//log.Println(answerbuf)
 
 	//对响应报文进行检查
 	if err != nil {
@@ -75,9 +74,9 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 		return ch
 	}
 
-	domain, questionlength, question := parseQuestion(answerbuf[12:])
+	domain, choice, questionlength, question := parseQuestion(answerbuf[12:])
 	//到底这里应该用uint16还是int?之后统一改成uint16吧（埋一个坑）
-	resourcelength, ResourceList := parseResource(domain, Ancount, answerbuf[12+questionlength:])
+	resourcelength, ResourceList := parseResource(domain, choice, Ancount, questionlength, answerbuf[12:])
 	if len(answerbuf) == 12+questionlength+resourcelength {
 		returninfo := returninfomation{
 			Other: bytes.Buffer{},
@@ -185,7 +184,7 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 	return ancount, nil, header
 }
 
-func parseQuestion(answerbuf []byte) (string, int, Question) {
+func parseQuestion(answerbuf []byte) (string, string, int, Question) {
 	var (
 		domain                      string
 		bits                        int
@@ -240,37 +239,50 @@ func parseQuestion(answerbuf []byte) (string, int, Question) {
 		Questiontype:  questiontype,
 		Questionclass: questionclass,
 	}
-	return domain, i + 1, question
+	return domain, questiontype1, i + 1, question //因为是长度，所以要在索引的基础上+1
 }
 
-func parseResource(domain string, ancount uint16, answerbuf []byte) (int, []Resource) {
+func parseResource(domain, choice string, ancount uint16, questionlength int, answerbuf []byte) (int, []Resource) {
 	fmt.Println("Answer Section:")
-	var i int = 6 //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
+	var i int = 6 + questionlength //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
 	var j uint16
-	ttl := binary.BigEndian.Uint32(answerbuf[i : i+5])
-	var data string
-	datalength := int(answerbuf[i+5])
-	i += 5
+	ttl := binary.BigEndian.Uint32(answerbuf[i : i+4]) //是4个字节！！！
+	i += 4
+	datalength := int(answerbuf[i])
+	i++
 	ResourceList := make([]Resource, ancount)
 	for j = 0; j < ancount; j++ {
-		for k := 0; k < datalength; k++ {
-			var tmp int
-			if k == 0 {
-				tmp = int(answerbuf[i+k])
-				data = fmt.Sprintf("%d", tmp)
+		var data string
+		if choice == "A" {
+			data = net.IPv4(answerbuf[i], answerbuf[i+1], answerbuf[i+2], answerbuf[i+3]).String()
+			i += 4
+		} else if choice == "AAAA" {
+			for k := 0; k < 8; k++ {
+				tmp := binary.BigEndian.Uint16(answerbuf[i : i+2])
+				i += 2
+				if k == 0 {
+					data = fmt.Sprintf("%x", tmp)
+					continue
+				}
+				data = fmt.Sprintf(data+":%x", tmp)
+			}
+		} else {
+			tag := binary.BigEndian.Uint16(answerbuf[i : i+2])
+			if (tag & 0xc0) == 0xc0 {
+				i += 2
 				continue
 			}
-			tmp = int(answerbuf[i+k])
-			data = fmt.Sprintf(data+"."+"%d", tmp)
+			data = string(answerbuf[i : i+datalength])
+			i += datalength
 		}
 		ResourceList[j] = Resource{
 			TTL:  ttl,
 			Data: data,
 		}
-		i += datalength
-		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%vs\n", domain, data, ttl)
+		fmt.Printf("%s\t\t\tIN\t%s\t\t\t%v\t\t\tTTL:%vs\n", domain, choice, data, ttl)
 	}
 	return i, ResourceList
+	//return i - (12 + questionlength), ResourceList
 }
 
 func storeOther(answerbuf []byte) (bytes.Buffer, error) {
@@ -278,3 +290,39 @@ func storeOther(answerbuf []byte) (bytes.Buffer, error) {
 	_, err := other.Write(answerbuf) //联想：二进制binary.Write(*otr->buffer,way,context)注意Write的W是大写的
 	return other, err
 }
+
+//NS指针压缩是在不知道怎么搞，先留下来埋坑
+/*
+	var k int
+	for k = 0; k < datalength; k++ {
+		//判断是否进行了标签压缩
+		tag := binary.BigEndian.Uint16(answerbuf[i+k : i+k+2])
+		if (tag & 0xc0) == 0xc0 {
+			bias := tag & 0x3f
+			tmp := bias - 12
+			for {
+				bits := uint16(answerbuf[tmp]) //表示长度的只会占1个字符！！
+				if bits == 0 {
+					break
+				}
+				tmp++
+				readbuf := make([]byte, bits)
+				scanner := bytes.NewReader(answerbuf[tmp : tmp+bits])
+				err := binary.Read(scanner, binary.BigEndian, &readbuf)
+				if err != nil {
+					log.Println("Failed to read the domain:", err.Error())
+				}
+				data += (string(readbuf) + ".")
+				tmp += bits
+			}
+			data += (data + ".")
+			k += 2
+			continue
+		}
+		tmp := int(answerbuf[i+k])
+		data += string(answerbuf[i+k:i+k+tmp]) + "."
+		k += (1 + tmp)
+	}
+	i += datalength
+	break
+*/
