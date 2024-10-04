@@ -11,7 +11,7 @@ import (
 )
 
 func getport() ([]string, error) {
-	fmt.Println("Please enter port seperate by space.(e.g.\"8000\" \"8001\" \"8002\")")
+	fmt.Println("Please enter port seperate by space.(e.g.\"8000 8001\" \"8002\")")
 	//获得一连串的输入
 	scanner := bufio.NewReader(os.Stdin)
 	input, err := scanner.ReadString('\n')

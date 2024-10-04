@@ -1,8 +1,10 @@
 package tran
 
 import (
+	"bufio"
 	"log"
 	"net"
+	"strings"
 )
 
 func CreateTCPSer(ports []string) {
@@ -28,39 +30,40 @@ func CreateTCPSer(ports []string) {
 				}
 				go ProcessTCP(conn) //这个一定要放在for内部，因为变量生命周期的原因
 			}
-			
-			
+
 		}(listener)
-		
+
 	}
 }
 
 func ProcessTCP(conn net.Conn) {
-	defer conn.Close()
-	buf := make([]byte, 8)
-
-	n,err := conn.Read(buf)
-	if err != nil {
-		log.Printf("Failed to recieve type from the client:%v\n", err)
-		conn.Close()
-		return
-	}
-
-	typeinfo := string(buf[:n])
-	switch typeinfo {
-	case "0":
-		newBuf := make([]byte,2048)
-		for {
-			err := textMode(conn,newBuf)
-			if err != nil {
-				break
-			}
+	scanner := bufio.NewReader(conn)
+	for {
+		//defer conn.Close()
+		buf, err := scanner.ReadString('\n')
+		if err != nil {
+			log.Println("Failed to read the type and message sent by client:", err.Error())
+			return
 		}
-	case "1":
-		fileMode(conn)
-	default:
-		log.Printf("Disapproval type:%v\n",err)
-		conn.Close() 
+		typeinfo := string(buf[0]) //一个数字只占一个字节gangan
+		switch typeinfo {
+		case "0":
+			for {
+				//newBuf := make([]byte, 2048)
+				buf, err := scanner.ReadString('\n')
+				buf = strings.TrimSpace(buf)
+				err = textMode(conn, buf[:len(buf)-1]) //所有字符串后面都会加上一个0结尾
+				if err != nil {
+					log.Println("Failed to read message:", err)
+					return
+				}
+			}
+
+		case "1":
+			fileMode(conn)
+		default:
+			log.Printf("Disapproval type:%c\n", typeinfo)
+			//conn.Close()
+		}
 	}
-	
 }

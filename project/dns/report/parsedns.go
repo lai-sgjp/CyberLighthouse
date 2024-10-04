@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 func caseJustify(a uint16) bool {
@@ -17,7 +18,18 @@ func caseJustify(a uint16) bool {
 	}
 	return false
 }
-func Parse(queryLength int, sendId uint16, conn net.Conn) (bytes.Buffer, error) {
+
+type returninfomation struct {
+	Other bytes.Buffer
+	Err   error
+}
+
+// 如果使用空接口，必须先进行类型断言在进行数值接收
+func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation {
+	t1 := time.Now()
+
+	ch := make(chan returninfomation, 1)
+
 	answerbuf := make([]byte, 512)
 	answerLength, err := conn.Read(answerbuf)
 	log.Println(answerbuf)
@@ -25,27 +37,59 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) (bytes.Buffer, error) 
 	//对响应报文进行检查
 	if err != nil {
 		log.Printf("Failed to receive the response from the DNS server:%v\n", err.Error())
-		return bytes.Buffer{}, err
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
 	}
 
 	Ancount, err := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
 	if err != nil {
 		log.Printf("Failed to parse the header:%v\n", err.Error())
-		return bytes.Buffer{}, err
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
 	}
 
 	domain, questionlength := parseQuestion(answerbuf[12:])
 	//到底这里应该用uint16还是int?之后统一改成uint16吧（埋一个坑）
 	resourcelength := parseResource(domain, Ancount, answerbuf[12+questionlength:])
 	if len(answerbuf) == 12+questionlength+resourcelength {
-		return bytes.Buffer{}, nil
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
 	}
 	other, err := storeOther(answerbuf[12+questionlength+resourcelength:])
 	if err != nil {
 		log.Printf("Failed to store the Authority and Additional infomation")
-		return other, err
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
 	}
-	return bytes.Buffer{}, nil
+	returninfo := returninfomation{
+		Other: other,
+		Err:   nil,
+	}
+	ch <- returninfo
+	close(ch)
+	durataion := time.Since(t1)
+	fmt.Println(durataion)
+	return ch
 }
 
 func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, error) {
@@ -60,6 +104,7 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 	//解析头部
 	var AA, TC, RD, RA, Rcode, Opcode uint16
 	//网络编程里面统一采用大端法
+	//这里涉及一位一位，所以采用位运算
 	flags := uint16(answerbuf[2])<<8 + uint16(answerbuf[3]) //因为是大端法，所以先读取rcode
 	//这里原来可以直接用binary.Read(*byte.reader,encoding_way,buffer)啊
 	Rcode = flags & 0xF
@@ -137,7 +182,6 @@ func parseQuestion(answerbuf []byte) (string, int) {
 		domain += (string(readbuf) + ".")
 		i += bits
 	}
-	domain += "."
 
 	questiontype = binary.BigEndian.Uint16(answerbuf[i : i+2])
 	questionclass = binary.BigEndian.Uint16(answerbuf[i+2 : i+4])
@@ -172,11 +216,21 @@ func parseResource(domain string, Ancount uint16, answerbuf []byte) int {
 	var i int = 6 //因为域名出现压缩，所以只用两个字节存储，后面的questiontype和questionclass一致，分别为2个字节
 	var j uint16
 	TTL := binary.BigEndian.Uint32(answerbuf[i : i+5])
-
+	var data string
 	datalength := int(answerbuf[i+5])
+	fmt.Println(datalength) //用于测试
 	i += 5
 	for j = 0; j < Ancount; j++ {
-		data := binary.BigEndian.Uint16(answerbuf[i : i+datalength])
+		for k := 0; k < datalength; k++ {
+			var tmp int
+			if k == 0 {
+				tmp = int(answerbuf[i+k])
+				data = fmt.Sprintf("%d", tmp)
+				continue
+			}
+			tmp = int(answerbuf[i+k])
+			data = fmt.Sprintf(data+"."+"%d", tmp)
+		}
 		i += datalength
 		fmt.Printf("%s\t\t\tIN\tA\t\t\t%v\t\t\tTTL:%vs\n", domain, data, TTL)
 	}

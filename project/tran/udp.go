@@ -25,22 +25,22 @@ func CreateUDPSer(ports []string) {
 	}
 }
 
-func ProcessUDP(conn *net.UDPConn) { 
+func ProcessUDP(conn *net.UDPConn) {
 
-	defer conn.Close()
+	//defer conn.Close()
 	buf := make([]byte, 8)
-	n,_,err := conn.ReadFromUDP(buf)
-	typeinfo := string(buf[:n])
+	n, _, err := conn.ReadFromUDP(buf)
+	typeinfo := string(buf[0])
 	if err != nil {
 		log.Printf("Failed to recieve type from the client:%v\n", err)
-		conn.Close() 
+		conn.Close()
 		return
 	}
 	switch typeinfo {
 	case "0":
-		newBuf := make([]byte,2048)
+		//newBuf := make([]byte, 2048)
 		for {
-			err := textModeudp(conn,newBuf)
+			err := textModeudp(conn, buf[1:n])
 			if err != nil {
 				break
 			}
@@ -50,7 +50,7 @@ func ProcessUDP(conn *net.UDPConn) {
 			fileModeudp(conn)
 		}
 	default:
-		log.Printf("Disapproval type:%v\n",err)
-		conn.Close() 
+		log.Printf("Disapproval type:%v\n", err)
+		//conn.Close()
 	}
 }
