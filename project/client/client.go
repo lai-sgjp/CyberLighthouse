@@ -7,14 +7,37 @@ import (
 	"os"
 	"strings"
 
-	"CyberLighthouse/dns/main"
+	"CyberLighthouse/dns/process"
 	"CyberLighthouse/tran_c"
 )
 
 func main() {
 
 	if len(os.Args) < 2 {
-		tran_c.CreateConn() //未指定就默认模式
+		fmt.Println("Which addr do you want to choose?")
+		var addr string
+		fmt.Scanf("%s", &addr)
+		//暂且默认host为本机
+		fmt.Println("Which port do you want to choose?")
+		var port string
+		fmt.Scanf("%s", &port)
+		if addr == "" || port == "" {
+			log.Println("You enter none to the buffer.We will use \"127.0.0.1:8080\" as default")
+		}
+
+		fmt.Println("Which way do you want to choose?Please enter \"udp\" or \"tcp\"")
+		var choice string
+		fmt.Scanf("%s", &choice)
+		addr = fmt.Sprintf("%s:%s", addr, port)
+		switch choice {
+		case "tcp":
+			tran_c.Choose("tcp", addr, "")
+		case "udp":
+			tran_c.Choose("udp", addr, "")
+		default:
+			log.Println("You enter protocol we don't support..We will use \"tcp\" as default")
+			tran_c.Choose("tcp", addr, "")
+		} //未指定就默认模式
 		return
 	}
 
@@ -43,7 +66,8 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		dns.DNS(*addrptr, *contextptr)
+		//u := tran_c.Udp{}
+		process.DNS(*addrptr, *contextptr)
 		return
 	}
 	if *modeptr == "file" {
@@ -59,11 +83,13 @@ func main() {
 			}
 			switch *protocolptr {
 			case "tcp":
-				conn := tran_c.CreateTCPConn(*addrptr)
-				tran_c.SendFile(conn, *contextptr)
+				t := tran_c.Tcp{}
+				conn := t.CreateConn(*addrptr)
+				t.SendFile(conn, *contextptr)
 			case "udp":
-				_, conn := tran_c.CreateUDPConn(*addrptr)
-				tran_c.SendFileUDP(conn, *contextptr) //想着能不能用接口进行类型断言然后使用？
+				u := tran_c.Udp{}
+				_, conn := u.CreateConn(*addrptr)
+				u.SendFile(conn, *contextptr) //想着能不能用接口进行类型断言然后使用？
 			}
 
 			return
@@ -79,5 +105,4 @@ func main() {
 		log.Println("We don't support this type.We will use the \"string\" mode by deafult")
 	}
 	tran_c.Choose(*protocolptr, *addrptr, *contextptr)
-	return
 }

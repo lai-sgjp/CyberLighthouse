@@ -1,4 +1,4 @@
-package report
+package process
 
 import (
 	"bytes"
@@ -62,7 +62,7 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 		return ch
 	}
 
-	Ancount, err, header := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
+	Ancount, header, err := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
 	if err != nil {
 		log.Printf("Failed to parse the header:%v\n", err.Error())
 		returninfo := returninfomation{
@@ -111,7 +111,7 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 	return ch
 }
 
-func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, error, DnsHeader) {
+func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, DnsHeader, error) {
 	recvId := uint16(answerbuf[0])<<8 + uint16(answerbuf[1]) //完全可以自动化不用手动
 	if recvId != sendId || answerLength <= queryLength {
 		log.Printf("Received ID:%v\nSend ID:%v", recvId, sendId)
@@ -142,7 +142,7 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 
 	if QR != 1 {
 		log.Printf("Answer received is not the response from the DNS server\n")
-		return 0, nil, DnsHeader{}
+		return 0, DnsHeader{}, nil
 	}
 	var Opcode1, Rcode1 string
 	switch Opcode {
@@ -181,7 +181,7 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 		Opcode:  Opcode1,
 		Qucount: qucount, Ancount: ancount, Aucount: aucount, Adcount: adcount,
 	}
-	return ancount, nil, header
+	return ancount, header, nil
 }
 
 func parseQuestion(answerbuf []byte) (string, string, int, Question) {

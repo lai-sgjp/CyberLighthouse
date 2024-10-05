@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-func CreateTCPSer(ports []string) {
+func (t *Tcp) CreateSer(ports []string) {
 	for _, port := range ports {
 		//建立端口地址
-		addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:"+port)
+		addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:"+port) //到时候要自定义主机地址
 		if err != nil {
 			log.Printf("Failed to get the correct TCP address %s: %v\n", port, err.Error())
 			continue
@@ -28,7 +28,7 @@ func CreateTCPSer(ports []string) {
 					log.Printf("Failed to accept the connection:%v\n", err.Error())
 					continue
 				}
-				go ProcessTCP(conn) //这个一定要放在for内部，因为变量生命周期的原因
+				go t.Process(conn) //这个一定要放在for内部，因为变量生命周期的原因
 			}
 
 		}(listener)
@@ -36,8 +36,9 @@ func CreateTCPSer(ports []string) {
 	}
 }
 
-func ProcessTCP(conn net.Conn) {
-	scanner := bufio.NewReader(conn)
+func (t *Tcp) Process(conn interface{}) {
+	realconn, _ := conn.(net.Conn)
+	scanner := bufio.NewReader(realconn)
 	for {
 		//defer conn.Close()
 		buf, err := scanner.ReadString('\n')
@@ -51,18 +52,21 @@ func ProcessTCP(conn net.Conn) {
 			for {
 				//newBuf := make([]byte, 2048)
 				buf, err := scanner.ReadString('\n')
-				buf = strings.TrimSpace(buf)
-				err = textMode(conn, buf[:len(buf)-1]) //所有字符串后面都会加上一个0结尾
 				if err != nil {
 					log.Println("Failed to read the message:", err.Error())
+				}
+				buf = strings.TrimSpace(buf)
+				err = t.textMode(realconn, buf[:len(buf)-1]) //所有字符串后面都会加上一个0结尾
+				if err != nil {
+					log.Printf("Failed to send message to the client:%v\n", err)
 					return
 				}
 			}
 
 		case "1":
-			fileMode(conn)
+			t.fileMode(realconn)
 		default:
-			log.Printf("Disapproval type:%c\n", typeinfo)
+			log.Printf("Disapproval type:%s\n", typeinfo)
 			//conn.Close()
 		}
 	}

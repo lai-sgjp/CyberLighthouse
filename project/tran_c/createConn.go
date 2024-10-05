@@ -1,7 +1,6 @@
 package tran_c
 
 import (
-	"fmt"
 	"log"
 	"net"
 )
@@ -16,7 +15,7 @@ func (e quitError) Error() string {
 }
 
 // 创立指定连接TCP
-func CreateTCPConn(addr string) net.Conn {
+func (t *Tcp) CreateConn(addr string) net.Conn {
 	conn, err := net.Dial("tcp", addr)
 
 	if err != nil {
@@ -27,7 +26,7 @@ func CreateTCPConn(addr string) net.Conn {
 }
 
 // 创立指定连接UDP
-func CreateUDPConn(addr string) (*net.UDPAddr, *net.UDPConn) {
+func (u *Udp) CreateConn(addr string) (*net.UDPAddr, *net.UDPConn) {
 	serverAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		log.Println("Failed to resolve the UDP address:", err.Error())
@@ -45,81 +44,43 @@ func CreateUDPConn(addr string) (*net.UDPAddr, *net.UDPConn) {
 func Choose(tran string, addr string, message string) {
 	switch tran {
 	case "tcp":
-		conn := CreateTCPConn(addr)
+		t := Tcp{}
+		conn := t.CreateConn(addr)
 		defer conn.Close()
-
+		var err error
 		for i := 0; i < 10; i++ {
-			typeinfo := fmt.Sprintf("%d\n", 0)
-			_, err := conn.Write([]byte(typeinfo))
+			message, err = getmessage(message)
 			if err != nil {
-				log.Println("Failed to send the type", err.Error())
-				return
+				log.Println("Fail to get the message...")
+				continue
 			}
-			if message == "" {
-				message, err = Message()
-				if err != nil {
-					log.Println("Fail to get the message...")
-					continue
-				}
-			}
-			err = defaultSend(conn, message)
+
+			err = t.defaultSend(conn, message)
 			if err != nil {
 				log.Println("Failed to send the message:", err.Error())
-				break
+				continue
 			}
 			message = ""
 		}
+
 	case "udp":
-		_, conn := CreateUDPConn(addr)
+		u := Udp{}
+		_, conn := u.CreateConn(addr)
 		defer conn.Close()
+		var err error
 		for i := 0; i < 10; i++ {
-			typeinfo := fmt.Sprintf("%d\n", 0)
-			_, err := conn.Write([]byte(typeinfo)) //前面创建了一个预连接，后面就无需writetoUDP,这会导致重复连接
+			message, err = getmessage(message)
 			if err != nil {
-				log.Println("Failed to send the type:", err.Error())
+				log.Println("Fail to get the message...")
 				continue
 			}
-			if message == "" {
-				message, err = Message()
-				if err != nil {
-					log.Println("Fail to get the message...")
-					continue
-				}
-			}
-			err = defaultSendUDP(conn, message)
+
+			err = u.defaultSend(conn, message)
 			if err != nil {
 				log.Println("Failed to send the message.", err.Error())
 				break
 			}
 			message = ""
 		}
-	}
-}
-
-// 发送信息(默认)因为是循环的，所以难以拆分（或者说没思路）
-func CreateConn() {
-	fmt.Println("Which addr do you want to choose?")
-	var addr string
-	fmt.Scanf("%s", &addr)
-	//暂且默认host为本机
-	fmt.Println("Which port do you want to choose?")
-	var port string
-	fmt.Scanf("%s", &port)
-	if addr == "" || port == "" {
-		log.Println("You enter none to the buffer.We will use \"127.0.0.1:8080\" as default")
-	}
-
-	fmt.Println("Which way do you want to choose?Please enter \"udp\" or \"tcp\"")
-	var choice string
-	fmt.Scanf("%s", &choice)
-	addr = fmt.Sprintf("%s:%s", addr, port)
-	switch choice {
-	case "tcp":
-		Choose("tcp", addr, "")
-	case "udp":
-		Choose("udp", addr, "")
-	default:
-		log.Println("You enter protocol we don't support..We will use \"tcp\" as default")
-		Choose("tcp", addr, "")
 	}
 }

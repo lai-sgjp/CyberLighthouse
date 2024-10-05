@@ -10,7 +10,7 @@ import (
 	"CyberLighthouse/tran"
 )
 
-func (s *server) getport() ([]string, error) {
+func getport() ([]string, error) {
 	fmt.Println("Please enter port seperate by space.(e.g.\"8000 8001\" \"8002\")")
 	//获得一连串的输入
 	scanner := bufio.NewReader(os.Stdin)
@@ -34,16 +34,11 @@ func main() {
 	var choice rune
 	fmt.Scanln("%v", &choice)
 	if choice == 'y' {
-		go tran.CreateUDPSer(ports)
-	} else {
-		go tran.CreateTCPSer(ports)
+		u := tran.Udp{} //创建实例(不在一个包里面但又要使用接口里面的方法)
+		go u.CreateSer(ports)
 	}
+	t := tran.Tcp{}
+	go t.CreateSer(ports)
 
 	select {} //保持server端长时间不关闭
-}
-
-type server interface {
-	getport() ([]string, error)
-	tran.Tcp
-	tran.Udp
 }
