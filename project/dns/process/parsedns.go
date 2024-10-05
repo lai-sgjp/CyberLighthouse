@@ -114,7 +114,7 @@ func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation 
 func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte) (uint16, DnsHeader, error) {
 	recvId := uint16(answerbuf[0])<<8 + uint16(answerbuf[1]) //完全可以自动化不用手动
 	if recvId != sendId || answerLength <= queryLength {
-		log.Printf("Received ID:%v\nSend ID:%v", recvId, sendId)
+		log.Printf("Received ID:%v\tSend ID:%v", recvId, sendId)
 		log.Printf("Failed to receive the correct response from the DNS server\n")
 	}
 
@@ -174,6 +174,9 @@ func parseHeader(sendId uint16, queryLength, answerLength int, answerbuf []byte)
 	fmt.Printf("status:%v\tid:%d\n", Rcode1, recvId)
 	fmt.Printf("Opcode:%v\tauthoritative answer:%v\ttruncated :%v\nrecursion desired:%v\trecursion available:%v\n", Opcode1, AA1, TC1, RD1, RA1)
 	fmt.Printf("question count:%d\tanswer count:%d\tauthority record count:%d\tadditional record count:%d\n", qucount, ancount, aucount, adcount)
+	if RA == 0 {
+		log.Println("This DNS server doesn't support the \"recursion\" function.")
+	}
 	header := DnsHeader{
 		RecvId: recvId,
 		AA:     AA1, TC: TC1, RD: RD1, RA: RA1,

@@ -59,15 +59,21 @@ func main() {
 		}
 		if *contextptr == "" {
 			fmt.Println("Please enter which domain address you want to analyse:")
-			var domain string
-			fmt.Scanf("%s", &domain)
+			fmt.Scanf("%s", *contextptr)
+
 			if strings.Replace(*addrptr, " ", "", -1) == "" {
 				log.Println("Since you enter nothing/break, we will exit the pocess.")
 				os.Exit(1)
 			}
 		}
 		//u := tran_c.Udp{}
-		process.DNS(*addrptr, *contextptr)
+		for i := 0; i < 4; i++ {
+			e := process.DNS(*addrptr, *contextptr)
+			if e {
+				return
+			}
+		}
+		fmt.Println("Failed to get the response for a long time...")
 		return
 	}
 	if *modeptr == "file" {
@@ -106,3 +112,5 @@ func main() {
 	}
 	tran_c.Choose(*protocolptr, *addrptr, *contextptr)
 }
+
+//整体抽象出来，启动客户端

@@ -1,0 +1,1 @@
+{"Other":{},"Err":null,"DNSHeader":{"RecvId":26916,"AA":false,"TC":false,"RD":true,"RA":true,"Rcode":"Server fail","Opcode":"Standard query","Qucount":1,"Aucount":0,"Ancount":0,"Adcount":0},"DNSQuestion":{"Domain":"","Questionclass":256,"Questiontype":0},"DNSResource":[]}

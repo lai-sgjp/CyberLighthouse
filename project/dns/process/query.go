@@ -44,7 +44,13 @@ func ParseDN(domain string) []byte { //这里的byte是单数！表示一个整�
 }
 
 func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.Duration, error) {
-
+	var (
+		conn       net.Conn
+		err        error
+		buffer     bytes.Buffer
+		typechoice string
+		RDchoice   int
+	)
 	source := rand.NewSource(time.Now().UnixNano())
 	rng := rand.New(source)
 	var randomId uint16 = uint16(rng.Intn(32768))
@@ -56,14 +62,18 @@ func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.D
 		Nscount: 0,
 		Adcount: 0,
 	}
-
-	requestHeader.Flag(0, 0, 0, 0, 1, 0, 0)
+	fmt.Println("Do you desire to recurse request?(1.true/0.false)")
+	_, err = fmt.Scanf("%d", &RDchoice)
+	if err != nil || (RDchoice != 1 && RDchoice != 0) {
+		log.Println("Unexpected content.We will open the desired recursion by default.")
+		RDchoice = 1
+	}
+	requestHeader.Flag(0, 0, 0, 0, uint16(RDchoice), 0, 0)
 
 	fmt.Println("Which type of the record do you want to check?(A,AAAA,NS,CNAME,MX,TXT)")
-	var choice string
-	fmt.Scanf("%s", &choice)
+	fmt.Scanln("%s", &typechoice)
 	var requestQuery dnsQuery
-	switch strings.ToUpper(choice) {
+	switch strings.ToUpper(strings.TrimSpace(typechoice)) {
 	case "A":
 		requestQuery = dnsQuery{
 			Qutype:  1,
@@ -102,13 +112,6 @@ func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.D
 		}
 	}
 	//请求的域名
-
-	var (
-		conn   net.Conn
-		err    error
-		buffer bytes.Buffer
-	)
-
 	conn, err = net.Dial("udp", dnsServer)
 
 	if err != nil {

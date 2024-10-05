@@ -18,13 +18,14 @@ type Udp struct {
 }
 */
 //func (u *Udp) DNS(dnsServer, domain string) {
-func DNS(dnsServer, domain string) {
-	_, sendId, queryLength, conn, duration, err := Send(dnsServer, domain)
+func DNS(dnsServer, domain string) bool {
+	//log.Println(domain) //发现问题：输入的没有传进domain
+	_, sendId, queryLength, conn, _, err := Send(dnsServer, domain)
 	if err != nil {
 		log.Fatal("Failed to send the query to  the DNS server:", err.Error())
 	}
 	//fmt.Println(query, "\n", queryLength, "\t", duration)
-	fmt.Println(queryLength, "\t", duration)
+	//fmt.Println(queryLength, "\t", duration)
 
 	//设置计时器
 	timeout := 5 * time.Second
@@ -33,7 +34,7 @@ func DNS(dnsServer, domain string) {
 	case <-timeoutChan:
 		fmt.Println("Wait for the response for too long...")
 		conn.Close()
-		return
+		return false
 	case returninfo := <-Parse(queryLength, sendId, conn):
 		if returninfo.Err != nil {
 			log.Fatal("Parse Error:", returninfo.Err.Error())
@@ -67,4 +68,5 @@ func DNS(dnsServer, domain string) {
 
 		conn.Close()
 	}
+	return true
 }
