@@ -1,10 +1,8 @@
 package tran
 
 import (
-	"bufio"
 	"log"
 	"net"
-	"strings"
 )
 
 //接口不允许在非本地类型上定义新方法，
@@ -31,31 +29,30 @@ func (u *Udp) CreateSer(ports []string) {
 
 func (u *Udp) Process(conn interface{}) {
 	realconn, _ := conn.(*net.UDPConn) //断言完成之后就可以用了
-	scanner := bufio.NewReader(realconn)
+
 	//defer conn.Close()
 	for {
-		buf, err := scanner.ReadString('\n')
+
+		buf := make([]byte, 2048)
+		n, clientAddr, err := realconn.ReadFromUDP(buf)
+		log.Println(buf)
 		if err != nil {
 			log.Println("Failer to read the type and message sent by client:", err.Error())
 			realconn.Close()
 			return
 		}
 		typeinfo := string(buf[0])
+
 		switch typeinfo {
 		case "0":
-			for {
-				buf, err := scanner.ReadString('\n')
-				if err != nil {
-					log.Println("Failed to read the message:", err.Error())
-				}
-				buf = strings.TrimSpace(buf)
-				err = u.textMode(realconn, buf[:len(buf)-1])
-				if err != nil {
-					log.Printf("Failed to send message to the client:%v\n", err)
-					realconn.Close()
-					return
-				}
+			err = u.textMode(clientAddr, realconn, string(buf[1:n-1]))
+			//log.Println("$%^")
+			if err != nil {
+				log.Printf("Failed to send message to the client:%v\n", err)
+				realconn.Close()
+				return
 			}
+
 		case "1":
 			u.fileMode(realconn)
 		default:

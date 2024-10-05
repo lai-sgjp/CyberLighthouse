@@ -12,12 +12,12 @@ import (
 
 // tcp模式下
 // 埋下一个坑：提示客户端发送成功
-func (t *Tcp) textMode(conn interface{}, buf string) error { //这里的conn就相当于创建了实例，后面赋给了realconn
+func (t *Tcp) textMode(conn interface{}, message string) error { //这里的conn就相当于创建了实例，后面赋给了realconn
 	realconn, _ := conn.(net.Conn)
-	message := string(buf[:])
+	//message := string(buf[:])
 	fmt.Printf("%s\n", message)
 
-	_, err := realconn.Write([]byte(buf[:len(message)])) //注意这里将字符串转为[]byte
+	_, err := realconn.Write([]byte("Successfully received!From the server.")) //注意这里将字符串转为[]byte
 	if err != nil {
 		realconn.Close()
 		return err
@@ -54,18 +54,12 @@ func (t *Tcp) fileMode(conn interface{}) {
 
 // udp模式下
 // 埋下一个坑：下客户端发送成功
-func (u *Udp) textMode(conn interface{}, newBuf string) error {
+func (u *Udp) textMode(clientAddr *net.UDPAddr, conn interface{}, message string) error {
 	realconn, _ := conn.(*net.UDPConn)
-	n, clientAddr, err := realconn.ReadFromUDP([]byte(newBuf))
-	if err != nil {
-		log.Printf("Failed to recieve message from the client:%v\n", err)
-		realconn.Close()
-		return err
-	}
-	message := string(newBuf[:n])
-	fmt.Printf("%s", message)
+	fmt.Println(message)
+	log.Println("seccess read")
 
-	_, err = realconn.WriteToUDP([]byte(newBuf[:n]), clientAddr)
+	_, err := realconn.WriteToUDP([]byte(message), clientAddr)
 	if err != nil {
 		realconn.Close()
 		return err

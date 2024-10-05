@@ -20,6 +20,10 @@ func getport() ([]string, error) {
 	}
 	//格式化输入
 	input = strings.TrimSpace(input)
+	if input == "" {
+		log.Println("You enter nothing.We will use the port \"8080\" by default.")
+		input = "8080"
+	}
 	ports := strings.Split(input, " ")
 	return ports, nil
 }
@@ -31,11 +35,14 @@ func main() {
 	}
 
 	fmt.Println("Whether turn on the UDP service or not(y/n)")
-	var choice rune
-	fmt.Scanln("%v", &choice)
-	if choice == 'y' {
+	var choice string
+	fmt.Scanln(&choice)
+	choice = strings.ToLower(strings.TrimSpace(choice))
+	if choice == "y" {
 		u := tran.Udp{} //创建实例(不在一个包里面但又要使用接口里面的方法)
 		go u.CreateSer(ports)
+	} else if choice != "y" && choice != "n" {
+		log.Println("Input error!We will only use the TCP service by default.")
 	}
 	t := tran.Tcp{}
 	go t.CreateSer(ports)

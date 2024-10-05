@@ -17,12 +17,18 @@ func main() {
 		fmt.Println("Which addr do you want to choose?")
 		var addr string
 		fmt.Scanf("%s", &addr)
+		if addr == "" {
+			log.Println("You enter none to the buffer.We will use \"127.0.0.1\" as default")
+			addr = "127.0.0.1"
+		}
+
 		//暂且默认host为本机
 		fmt.Println("Which port do you want to choose?")
 		var port string
 		fmt.Scanf("%s", &port)
-		if addr == "" || port == "" {
-			log.Println("You enter none to the buffer.We will use \"127.0.0.1:8080\" as default")
+		if port == "" {
+			log.Println("You enter none to the buffer.We will use \"8080\" as default")
+			port = "8080"
 		}
 
 		fmt.Println("Which way do you want to choose?Please enter \"udp\" or \"tcp\"")
@@ -59,7 +65,7 @@ func main() {
 		}
 		if *contextptr == "" {
 			fmt.Println("Please enter which domain address you want to analyse:")
-			fmt.Scanf("%s", *contextptr)
+			fmt.Scanf("%s", *contextptr) //这个地方一个是输入Println后面会带一个\n，而且输入的存储块应该在*contextptr里面
 
 			if strings.Replace(*addrptr, " ", "", -1) == "" {
 				log.Println("Since you enter nothing/break, we will exit the pocess.")

@@ -71,7 +71,7 @@ func Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Conn, time.D
 	requestHeader.Flag(0, 0, 0, 0, uint16(RDchoice), 0, 0)
 
 	fmt.Println("Which type of the record do you want to check?(A,AAAA,NS,CNAME,MX,TXT)")
-	fmt.Scanln("%s", &typechoice)
+	fmt.Scanln(&typechoice)
 	var requestQuery dnsQuery
 	switch strings.ToUpper(strings.TrimSpace(typechoice)) {
 	case "A":

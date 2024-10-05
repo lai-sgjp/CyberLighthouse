@@ -11,12 +11,21 @@ import (
 	"strings"
 )
 
+// 自定义错误
+type quitError struct {
+	message string
+}
+
+func (e quitError) Error() string {
+	return e.message
+}
+
 // 要发送什么（发送的模式）
 func Message() (string, error) {
 
 	fmt.Println("What information do you want to send?Type Q to quit.")
 	scanner := bufio.NewReader(os.Stdin)
-	input, err := scanner.ReadString('\n')
+	input, err := scanner.ReadString('\n') //读到包括\n
 	if err != nil {
 		return "", err
 	}
@@ -41,17 +50,15 @@ func (t *Tcp) defaultSend(conn interface{}, message string) error { //字符串�
 	//判断客户端退出条件
 	if strings.ToUpper(message) == "Q" {
 		realconn.Close()
-
 		return quitError{message: "client has quitted"}
 	}
 	//发送数据类型
-	typeinfo := fmt.Sprintf("%d\n", 0)
+	typeinfo := fmt.Sprintf("%d"+message+"\n", 0)
 	_, err := realconn.Write([]byte(typeinfo))
 	if err != nil {
-		log.Println("Failed to send the type", err.Error())
+		log.Println("Failed to send the type and the message", err.Error())
 		return err
 	}
-
 	//发送数据
 	_, err = realconn.Write([]byte(message))
 	if err != nil {
@@ -67,18 +74,11 @@ func (u *Udp) defaultSend(conn interface{}, message string) error {
 
 		return quitError{message: "client has quitted"}
 	}
-	//发送数据类型
-	typeinfo := fmt.Sprintf("%d\n", 0)
+	//发送数据类型和内容
+	typeinfo := fmt.Sprintf("%d"+message+"\n", 0)
 	_, err := realconn.Write([]byte(typeinfo))
 	if err != nil {
-		log.Println("Failed to send the type", err.Error())
-		return err
-	}
-
-	//发送数据
-	_, err = realconn.Write([]byte(message))
-	if err != nil {
-		log.Println("Failed to send the message:", err.Error())
+		log.Println("Failed to send the type and the message:", err.Error())
 		return err
 	}
 	return nil

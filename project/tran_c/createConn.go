@@ -3,16 +3,8 @@ package tran_c
 import (
 	"log"
 	"net"
+	"os"
 )
-
-// 自定义错误
-type quitError struct {
-	message string
-}
-
-func (e quitError) Error() string {
-	return e.message
-}
 
 // 创立指定连接TCP
 func (t *Tcp) CreateConn(addr string) net.Conn {
@@ -48,17 +40,21 @@ func Choose(tran string, addr string, message string) {
 		conn := t.CreateConn(addr)
 		defer conn.Close()
 		var err error
-		for i := 0; i < 10; i++ {
+		for {
 			message, err = getmessage(message)
 			if err != nil {
-				log.Println("Fail to get the message...")
+				log.Println("Fail to get the message:", err)
 				continue
+			}
+			if message == "q" {
+				log.Println("You have quitted the pocess.")
+				os.Exit(0)
 			}
 
 			err = t.defaultSend(conn, message)
 			if err != nil {
 				log.Println("Failed to send the message:", err.Error())
-				continue
+				break
 			}
 			message = ""
 		}
@@ -68,13 +64,16 @@ func Choose(tran string, addr string, message string) {
 		_, conn := u.CreateConn(addr)
 		defer conn.Close()
 		var err error
-		for i := 0; i < 10; i++ {
+		for {
 			message, err = getmessage(message)
 			if err != nil {
-				log.Println("Fail to get the message...")
+				log.Println("Fail to get the message:", err)
 				continue
 			}
-
+			if message == "q" {
+				log.Println("You have quitted the pocess.")
+				os.Exit(0)
+			}
 			err = u.defaultSend(conn, message)
 			if err != nil {
 				log.Println("Failed to send the message.", err.Error())
