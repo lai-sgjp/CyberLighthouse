@@ -35,6 +35,12 @@ func main() {
 	}
 	//u := process.Udp{}
 	//u.DNS(dnsServer, domain)
-	process.DNS(dnsServer, domain)
-
+	fmt.Println("Which way do you want to choose?Please enter \"udp\" or \"tcp\"")
+	var choice string
+	fmt.Scanf("%s", &choice)
+	if choice != "udp" && choice != "tcp" {
+		log.Println("You enter protocol we don't support..We will use \"udp\" as default")
+		choice = "udp"
+	}
+	process.DNS(dnsServer, domain, choice)
 }

@@ -51,7 +51,7 @@ func main() {
 	addrptr := flag.String("a", "127.0.0.1:8080", "which address do you want to send message/ask for the DNS server") //a是go run的保留字
 	modeptr := flag.String("m", "string", "which mode do you want to use(string/file)")                               //感觉传整数和数字都一样。不如最后接收时转类型？
 	contextptr := flag.String("c", "", "what do you want to send/which domain you want to ask")
-	dnsptr := flag.Bool("dns", false, "whether ask for the DNS server or not(true/false).If you choose \"true\",you can define \"-a\" and \"-c\"")
+	dnsptr := flag.Bool("dns", false, "whether ask for the DNS server or not(true/false).If you choose \"true\",you can define \"-a\" ,\"-p\" and \"-c\"")
 
 	flag.Parse()
 	if *dnsptr {
@@ -65,16 +65,25 @@ func main() {
 		}
 		if *contextptr == "" {
 			fmt.Println("Please enter which domain address you want to analyse:")
-			fmt.Scanf("%s", *contextptr) //这个地方一个是输入Println后面会带一个\n，而且输入的存储块应该在*contextptr里面
+			fmt.Scanf("%s", contextptr) //这个地方一个是输入Println后面会带一个\n，而且输入的存储块应该在*contextptr里面
 
 			if strings.Replace(*addrptr, " ", "", -1) == "" {
 				log.Println("Since you enter nothing/break, we will exit the pocess.")
 				os.Exit(1)
 			}
 		}
+
+		if *protocolptr != "tcp" && *protocolptr != "udp" {
+			fmt.Println("Which way do you want to choose?Please enter \"udp\" or \"tcp\"")
+			fmt.Scanf("%s", protocolptr)
+			if *protocolptr != "tcp" && *protocolptr != "udp" {
+				log.Println("You enter protocol we don't support..We will use \"udp\" as default")
+				*protocolptr = "udp"
+			} //未指定就默认模式
+		}
 		//u := tran_c.Udp{}
 		for i := 0; i < 4; i++ {
-			e := process.DNS(*addrptr, *contextptr)
+			e := process.DNS(*addrptr, *contextptr, *protocolptr)
 			if e {
 				return
 			}

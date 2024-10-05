@@ -42,13 +42,84 @@ type returninfomation struct {
 }
 
 // 如果使用空接口，必须先进行类型断言在进行数值接收
-func Parse(queryLength int, sendId uint16, conn net.Conn) chan returninfomation {
+func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan returninfomation {
+	realconn, _ := conn.(net.Conn)
 	t1 := time.Now()
 
 	ch := make(chan returninfomation, 1)
 
 	answerbuf := make([]byte, 512)
-	answerLength, err := conn.Read(answerbuf)
+	answerLength, err := realconn.Read(answerbuf)
+
+	//对响应报文进行检查
+	if err != nil {
+		log.Printf("Failed to receive the response from the DNS server:%v\n", err.Error())
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
+	}
+
+	Ancount, header, err := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
+	if err != nil {
+		log.Printf("Failed to parse the header:%v\n", err.Error())
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
+	}
+
+	domain, choice, questionlength, question := parseQuestion(answerbuf[12:])
+	//到底这里应该用uint16还是int?之后统一改成uint16吧（埋一个坑）
+	resourcelength, ResourceList := parseResource(domain, choice, Ancount, questionlength, answerbuf[12:])
+	if len(answerbuf) == 12+questionlength+resourcelength {
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
+	}
+	other, err := storeOther(answerbuf[12+questionlength+resourcelength:])
+	if err != nil {
+		log.Printf("Failed to store the Authority and Additional infomation")
+		returninfo := returninfomation{
+			Other: bytes.Buffer{},
+			Err:   err,
+		}
+		ch <- returninfo
+		close(ch)
+		return ch
+	}
+	returninfo := returninfomation{
+		Other:       other,
+		Err:         nil,
+		DNSHeader:   header,
+		DNSQuestion: question,
+		DNSResource: ResourceList,
+	}
+	ch <- returninfo
+	close(ch)
+	durataion := time.Since(t1)
+	fmt.Println(durataion)
+	return ch
+}
+
+func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan returninfomation {
+	realconn, _ := conn.(*net.UDPConn)
+	t1 := time.Now()
+
+	ch := make(chan returninfomation, 1)
+
+	answerbuf := make([]byte, 512)
+	answerLength, err := realconn.Read(answerbuf)
 
 	//对响应报文进行检查
 	if err != nil {
