@@ -59,11 +59,17 @@ func (t *Tcp) defaultSend(conn interface{}, message string) error { //字符串�
 		log.Println("Failed to send the type and the message", err.Error())
 		return err
 	}
-	//发送数据
-	_, err = realconn.Write([]byte(message))
+
+	scanner := bufio.NewReader(realconn)
+	defer scanner.Reset(scanner)
+	response, err := scanner.ReadString('\n')
+	response = strings.TrimSpace(response)
 	if err != nil {
-		log.Println("Failed to send the message:", err.Error())
+		log.Println("Failed to get the response from the server:", err.Error())
+		return err
 	}
+	log.Println(response)
+	scanner.Reset(scanner)
 	return nil
 }
 
@@ -81,6 +87,16 @@ func (u *Udp) defaultSend(conn interface{}, message string) error {
 		log.Println("Failed to send the type and the message:", err.Error())
 		return err
 	}
+	scanner := bufio.NewReader(realconn)
+	defer scanner.Reset(scanner)
+	response, err := scanner.ReadString('\n')
+	response = strings.TrimSpace(response)
+	if err != nil {
+		log.Println("Failed to get the response from the server:", err.Error())
+		return err
+	}
+	log.Println(response)
+	scanner.Reset(scanner)
 	return nil
 }
 
@@ -101,17 +117,34 @@ func (t *Tcp) SendFile(conn interface{}, filename string) {
 	}
 	defer file.Close() //这里创建通道的时候又重复进行了选择，感觉不太高效。留一个坑后面有时间再填
 
-	fmt.Fprintf(realconn, filename+"\n") //向通道指定输出
+	//fmt.Fprintf(realconn, filename+"\n") //向通道指定输出
+	filename += "\n"
+	_, err = realconn.Write([]byte(filename))
+	if err != nil {
+		log.Fatal("Failed to read the file name:", err)
+	}
 	filestatus, err := file.Stat()
 	if err != nil {
 		log.Fatal("File is abnormal:", err)
 	}
 	fileSize := filestatus.Size()
-	binary.Write(realconn, binary.BigEndian, fileSize)
-	_, err = io.Copy(realconn, file)
+	log.Println("filesize######", fileSize)
+	binary.Write(realconn, binary.BigEndian, &fileSize) //后面必须是一个指针
+	//_,_=realconn.Write([]byte(fileSize))
+	//_, err = io.Copy(realconn, file)
 	if err != nil {
 		log.Fatal("Failed to send the file:", err)
 	}
+	scanner := bufio.NewReader(realconn)
+	defer scanner.Reset(scanner)
+	response, err := scanner.ReadString('\n')
+	response = strings.TrimSpace(response)
+	if err != nil {
+		log.Println("Failed to get the response from the server:", err.Error())
+		return
+	}
+	log.Println(response)
+	scanner.Reset(scanner)
 }
 
 func (u *Udp) SendFile(conn interface{}, filename string) {
@@ -129,15 +162,30 @@ func (u *Udp) SendFile(conn interface{}, filename string) {
 	}
 	defer file.Close() //这里创建通道的时候又重复进行了选择，感觉不太高效。留一个坑后面有时间再填
 
-	fmt.Fprintf(realconn, filename+"\n") //向通道指定输出
+	filename += "\n"
+	_, err = realconn.Write([]byte(filename))
+	if err != nil {
+		log.Fatal("Failed to read the file name:", err)
+	}
 	filestatus, err := file.Stat()
 	if err != nil {
 		log.Fatal("File is abnormal:", err)
 	}
 	fileSize := filestatus.Size()
-	binary.Write(realconn, binary.BigEndian, fileSize)
+	log.Println("filesize######", fileSize)
+	binary.Write(realconn, binary.BigEndian, &fileSize)
 	_, err = io.Copy(realconn, file)
 	if err != nil {
 		log.Fatal("Failed to send the file:", err)
 	}
+	scanner := bufio.NewReader(realconn)
+	defer scanner.Reset(scanner)
+	response, err := scanner.ReadString('\n')
+	response = strings.TrimSpace(response)
+	if err != nil {
+		log.Println("Failed to get the response from the server:", err.Error())
+		return
+	}
+	log.Println(response)
+	scanner.Reset(scanner)
 }

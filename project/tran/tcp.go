@@ -11,32 +11,37 @@ import (
 
 // 一定要注意不要重复读取数据，并且UDP的server端一定要使用ReadFromUDP,WriteToUdp
 func (t *Tcp) CreateSer(ports []string) {
+	var (
+		addrset []string
+		input   string
+	)
+	scanner := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Println("Which address do you want to listen to on the ?Please split them with a break.")
+		fmt.Println("If you want to exit the pocess,please enter \"q\".")
+		input, err := scanner.ReadString('\n')
+		if err != nil {
+			log.Println("Failed to read the addr.")
+			continue
+		}
+		input = strings.TrimSpace(input)
+		if input == "" {
+			log.Println("You enter nothing.Please try again.")
+			continue
+		}
+		if strings.ToLower(input) == "q" {
+			log.Println("You have quitted the pocess")
+			os.Exit(0)
+		}
+		break
+	}
+
+	addrset = strings.Split(input, " ")
 	for _, port := range ports {
 		//建立端口地址
-		var addrset []string
-		scanner := bufio.NewReader(os.Stdin)
-		for {
-			fmt.Println("Which address do you want to listen to?Please split them with a break.")
-			fmt.Println("If you want to exit the pocess,please enter \"q\".")
-			input, err := scanner.ReadString('\n')
-			if err != nil {
-				log.Println("Failed to read the addr.")
-				continue
-			}
-			input = strings.TrimSpace(input)
-			if input == "" {
-				log.Println("You enter nothing.Please try again.")
-				continue
-			}
-			if strings.ToLower(input) == "q" {
-				log.Println("You have quitted the pocess")
-				os.Exit(0)
-			}
-			addrset = strings.Split(input, " ")
-			break
-		}
+
 		for _, addr := range addrset {
-			addr, err := net.ResolveTCPAddr("tcp", addr+":"+port) //到时候要自定义主机地址
+			addr, err := net.ResolveTCPAddr("tcp", addr+":"+port)
 			if err != nil {
 				log.Printf("Failed to get the correct TCP address %s: %v\n", port, err.Error())
 				continue
@@ -65,7 +70,7 @@ func (t *Tcp) CreateSer(ports []string) {
 
 func (t *Tcp) Process(conn interface{}) {
 	realconn, _ := conn.(net.Conn)
-	scanner := bufio.NewReader(realconn)
+	scanner := bufio.NewReader(realconn) //不同读取源就可以用不一样的
 	for {
 		//defer conn.Close()
 		buf, err := scanner.ReadString('\n')
@@ -74,6 +79,7 @@ func (t *Tcp) Process(conn interface{}) {
 			realconn.Close()
 			return
 		}
+		buf = strings.TrimSpace(buf)
 		typeinfo := string(buf[0]) //一个数字只占一个字节gangan
 		switch typeinfo {
 		case "0":
@@ -84,7 +90,9 @@ func (t *Tcp) Process(conn interface{}) {
 				return
 			}
 		case "1":
-			t.fileMode(realconn)
+			t.fileMode(realconn, scanner)
+			realconn.Close()
+			return
 		default:
 			log.Printf("Disapproval type:%s\n", typeinfo)
 			//conn.Close()
