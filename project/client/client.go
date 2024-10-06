@@ -48,15 +48,16 @@ func main() {
 	}
 
 	protocolptr := flag.String("p", "tcp", "which protocol do you want to use(tcp/udp)")
-	addrptr := flag.String("a", "127.0.0.1:8080", "which address do you want to send message/ask for the DNS server") //a是go run的保留字
-	modeptr := flag.String("m", "string", "which mode do you want to use(string/file)")                               //感觉传整数和数字都一样。不如最后接收时转类型？
+	addrptr := flag.String("a", "127.0.0.1:8080", "which address do you want to send message/ask for the DNS server(If you want to send the query to the localhost,please enter \"192.168.56.1:53\".)") //a是go run的保留字
+	modeptr := flag.String("m", "string", "which mode do you want to use(string/file)")                                                                                                                 //感觉传整数和数字都一样。不如最后接收时转类型？
 	contextptr := flag.String("c", "", "what do you want to send/which domain you want to ask")
 	dnsptr := flag.Bool("dns", false, "whether ask for the DNS server or not(true/false).If you choose \"true\",you can define \"-a\" ,\"-p\" and \"-c\"")
 
 	flag.Parse()
 	if *dnsptr {
 		if (strings.Replace(*addrptr, " ", "", -1) == "") || (*addrptr == "127.0.0.1:8080") {
-			fmt.Println("Please enter a DNS server and the port(port usually is 53):") //期待加上超时
+			fmt.Println("Please enter a DNS server and the port(port usually is 53):")
+			fmt.Println("If you want to send the query to the localhost,please enter \"192.168.56.1:53\".") //期待加上超时
 			fmt.Scanf("%s", addrptr)
 			if (strings.Replace(*addrptr, " ", "", -1) == "") || (*addrptr == "127.0.0.1:8080") {
 				log.Println("Since you enter nothing/break, we will use 8.8.8.8:53 by default.")

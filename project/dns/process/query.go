@@ -214,7 +214,11 @@ func (t *Tcp) Send(dnsServer, domain string) (bytes.Buffer, uint16, int, net.Con
 		log.Printf("Failed to connect:%v\n", err.Error())
 		return bytes.Buffer{}, 0, 0, realconn, time.Duration(0), err
 	}
-
+	/*
+		if dnsServer == "192.168.56.1:53" {
+			binary.Write(&buffer, binary.BigEndian, uint8(2))
+		}
+	*/
 	binary.Write(&buffer, binary.BigEndian, requestHeader)
 	binary.Write(&buffer, binary.BigEndian, ParseDN(domain))
 	binary.Write(&buffer, binary.BigEndian, requestQuery)
