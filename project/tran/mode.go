@@ -23,6 +23,11 @@ func (t *Tcp) textMode(conn interface{}, message string) error { //这里的conn
 		realconn.Close()
 		return err
 	}
+	_, err = realconn.Write([]byte(message))
+	if err != nil {
+		realconn.Close()
+		return err
+	}
 	return nil
 }
 
@@ -80,12 +85,11 @@ func (u *Udp) textMode(clientAddr *net.UDPAddr, conn interface{}, message string
 		realconn.Close()
 		return err
 	}
-	/*
-		_, err = realconn.Write([]byte("Successfully received!From the server.\n")) //注意这里将字符串转为[]byte
-		if err != nil {
-			realconn.Close()
-			return err
-		}*/
+	_, err = realconn.WriteToUDP([]byte("Successfully received!From the server.\n"), clientAddr) //注意这里将字符串转为[]byte
+	if err != nil {
+		realconn.Close()
+		return err
+	}
 	return nil
 }
 
