@@ -33,7 +33,7 @@ type Resource struct {
 	TTL  uint32
 	Data string
 }
-type returninfomation struct {
+type Returninfomation struct {
 	Other       bytes.Buffer
 	Err         error
 	DNSHeader   DnsHeader
@@ -42,11 +42,11 @@ type returninfomation struct {
 }
 
 // 如果使用空接口，必须先进行类型断言在进行数值接收
-func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan returninfomation {
+func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan Returninfomation {
 	realconn, _ := conn.(net.Conn)
 	t1 := time.Now()
 
-	ch := make(chan returninfomation, 1)
+	ch := make(chan Returninfomation, 1)
 
 	answerbuf := make([]byte, 512)
 	answerLength, err := realconn.Read(answerbuf)
@@ -54,7 +54,7 @@ func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	//对响应报文进行检查
 	if err != nil {
 		log.Printf("Failed to receive the response from the DNS server:%v\n", err.Error())
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -66,7 +66,7 @@ func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	Ancount, header, err := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
 	if err != nil {
 		log.Printf("Failed to parse the header:%v\n", err.Error())
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -79,7 +79,7 @@ func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	//到底这里应该用uint16还是int?之后统一改成uint16吧（埋一个坑）
 	resourcelength, ResourceList := parseResource(domain, choice, Ancount, questionlength, answerbuf[12:])
 	if len(answerbuf) == 12+questionlength+resourcelength {
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -90,7 +90,7 @@ func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	other, err := storeOther(answerbuf[12+questionlength+resourcelength:])
 	if err != nil {
 		log.Printf("Failed to store the Authority and Additional infomation")
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -98,7 +98,7 @@ func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 		close(ch)
 		return ch
 	}
-	returninfo := returninfomation{
+	returninfo := Returninfomation{
 		Other:       other,
 		Err:         nil,
 		DNSHeader:   header,
@@ -112,11 +112,11 @@ func (t *Tcp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	return ch
 }
 
-func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan returninfomation {
+func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan Returninfomation {
 	realconn, _ := conn.(*net.UDPConn)
 	t1 := time.Now()
 
-	ch := make(chan returninfomation, 1)
+	ch := make(chan Returninfomation, 1)
 
 	answerbuf := make([]byte, 512)
 	answerLength, err := realconn.Read(answerbuf)
@@ -124,7 +124,7 @@ func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	//对响应报文进行检查
 	if err != nil {
 		log.Printf("Failed to receive the response from the DNS server:%v\n", err.Error())
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -136,7 +136,7 @@ func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	Ancount, header, err := parseHeader(sendId, queryLength, answerLength, answerbuf[:12])
 	if err != nil {
 		log.Printf("Failed to parse the header:%v\n", err.Error())
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -149,7 +149,7 @@ func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	//到底这里应该用uint16还是int?之后统一改成uint16吧（埋一个坑）
 	resourcelength, ResourceList := parseResource(domain, choice, Ancount, questionlength, answerbuf[12:])
 	if len(answerbuf) == 12+questionlength+resourcelength {
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -160,7 +160,7 @@ func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 	other, err := storeOther(answerbuf[12+questionlength+resourcelength:])
 	if err != nil {
 		log.Printf("Failed to store the Authority and Additional infomation")
-		returninfo := returninfomation{
+		returninfo := Returninfomation{
 			Other: bytes.Buffer{},
 			Err:   err,
 		}
@@ -168,7 +168,7 @@ func (u *Udp) Parse(queryLength int, sendId uint16, conn interface{}) chan retur
 		close(ch)
 		return ch
 	}
-	returninfo := returninfomation{
+	returninfo := Returninfomation{
 		Other:       other,
 		Err:         nil,
 		DNSHeader:   header,

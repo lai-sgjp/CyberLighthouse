@@ -70,7 +70,7 @@ func DNS(dnsServer, domain, protocol string) bool {
 			if err != nil {
 				log.Println("Failed to storge the data in the file:", err.Error())
 			}
-			fmt.Println("Data is successfully stored in the " + domain + "DNSReport.json")
+			fmt.Println("Data is successfully stored in the " + domain + string(returninfo.DNSQuestion.Questiontype) + "DNSReport.json") //之后期望将数值转为字符
 
 			realconn.Close()
 		}
