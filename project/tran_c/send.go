@@ -68,15 +68,19 @@ func (t *Tcp) defaultSend(conn interface{}, message string) error { //字符串�
 		log.Println("Failed to get the response from the server:", err.Error())
 		return err
 	}
-	log.Println(response, "Please see below")
-	scanner.Reset(scanner)
-	response, err = scanner.ReadString('\n')
-	response = strings.TrimSpace(response)
-	if err != nil {
-		log.Println("Failed to get the response from the server:", err.Error())
-		return err
-	}
-	fmt.Println(response)
+	log.Println(response)
+	/*
+		log.Println(response, "Please see below")
+
+		scanner.Reset(scanner)
+		response, err = scanner.ReadString('\n')
+		response = strings.TrimSpace(response)
+		if err != nil {
+			log.Println("Failed to get the response from the server:", err.Error())
+			return err
+		}
+		fmt.Println(response)
+	*/
 	return nil
 }
 
@@ -102,15 +106,18 @@ func (u *Udp) defaultSend(conn interface{}, message string) error {
 		log.Println("Failed to get the response from the server:", err.Error())
 		return err
 	}
-	log.Println(response, "please see below")
-	scanner.Reset(scanner)
-	response, err = scanner.ReadString('\n')
-	response = strings.TrimSpace(response)
-	if err != nil {
-		log.Println("Failed to get the response from the server:", err.Error())
-		return err
-	}
-	fmt.Println(response)
+	log.Println(response)
+	/*
+		log.Println(response, "please see below")
+		scanner.Reset(scanner)
+		response, err = scanner.ReadString('\n')
+		response = strings.TrimSpace(response)
+		if err != nil {
+			log.Println("Failed to get the response from the server:", err.Error())
+			return err
+		}
+		fmt.Println(response)
+	*/
 	return nil
 }
 
